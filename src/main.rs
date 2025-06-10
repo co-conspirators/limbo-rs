@@ -13,10 +13,12 @@ use hyprland::prelude::*;
 
 use crate::components::{icon, section, side};
 use crate::hyprland_listener::hyprland_subscription;
+use crate::sections::clock::{Clock, ClockMessage};
 
 mod components;
 mod hyprland_listener;
 mod icons;
+mod sections;
 
 use icons::Icons;
 
@@ -70,6 +72,8 @@ struct Flags {
 
 struct Limbo {
     monitor: String,
+
+    clock: Clock,
 }
 
 // Because new iced delete the custom command, so now we make a macro crate to generate
@@ -82,6 +86,8 @@ pub enum Message {
     WorkspaceCreated(i32),
     WorkspaceDestroyed(i32),
     IcedEvent(Event),
+
+    Clock(ClockMessage),
 }
 
 impl Application for Limbo {
@@ -94,6 +100,7 @@ impl Application for Limbo {
         (
             Self {
                 monitor: flags.monitor,
+                clock: Clock::new(),
             },
             Command::none(),
         )
@@ -104,7 +111,11 @@ impl Application for Limbo {
     }
 
     fn subscription(&self) -> iced::Subscription<Self::Message> {
-        hyprland_subscription()
+        let subscriptions = vec![
+            hyprland_subscription(),
+            self.clock.subscription().map(Message::Clock),
+        ];
+        iced::Subscription::batch(subscriptions)
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
@@ -125,11 +136,15 @@ impl Application for Limbo {
                 println!("workspace destroyed: {id:?}");
                 Command::none()
             }
+            Message::Clock(msg) => {
+                self.clock.update(msg);
+                Command::none()
+            }
             _ => unreachable!(),
         }
     }
 
-    fn view(&self) -> Element<Message> {
+    fn view(&self) -> Element<'_, Message> {
         row![
             // Left
             side(
@@ -145,7 +160,7 @@ impl Application for Limbo {
             // Center
             side(
                 Alignment::Center,
-                row![section(icon("nix-snowflake-white", None))].spacing(12)
+                row![self.clock.view().map(Message::Clock)].spacing(12)
             ),
             // Right
             side(
