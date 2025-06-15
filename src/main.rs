@@ -1,29 +1,23 @@
-use std::thread;
+use iced::{Alignment, Color, Element, Event, Length, Task, Theme, widget::row};
+use iced_layershell::{
+    Application,
+    reexport::{Anchor, KeyboardInteractivity},
+    settings::{LayerShellSettings, Settings, StartMode},
+    to_layer_message,
+};
 
-use iced::border::Radius;
-use iced::widget::{Space, Svg, container, row, svg, text};
-use iced::{Alignment, Border, Color, Element, Event, Length, Task as Command, Theme};
-use iced_layershell::Application;
-use iced_layershell::reexport::{Anchor, KeyboardInteractivity};
-use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
-use iced_layershell::to_layer_message;
-
-use hyprland::data::{Monitors, Workspace, Workspaces};
-use hyprland::prelude::*;
-
-use crate::components::{icon, section, side};
-use crate::hyprland_listener::hyprland_subscription;
-use crate::sections::clock::{Clock, ClockMessage};
+use crate::{
+    components::{icon, section, side},
+    desktop_environment::{DesktopEvent, Monitor, MonitorInfo},
+    sections::clock::{Clock, ClockMessage},
+};
 
 mod components;
-mod hyprland_listener;
+mod desktop_environment;
 mod icons;
 mod sections;
 
-use icons::Icons;
-
-#[tokio::main]
-pub async fn main() -> () {
+pub fn main() {
     // Workaround for https://github.com/friedow/centerpiece/issues/237
     // WGPU picks the lower power GPU by default, which on some systems,
     // will pick an IGPU that doesn't exist leading to a black screen.
@@ -33,58 +27,55 @@ pub async fn main() -> () {
         }
     }
 
-    // Run on all monitors
-    let monitors = Monitors::get().expect("failed to get hyprland monitors");
-    let monitors = monitors
-        .iter()
-        .map(|monitor| monitor.name.clone())
-        .collect::<Vec<_>>();
+    let monitors = desktop_environment::listen_monitors();
 
-    let tasks = monitors
-        .into_iter()
-        .map(|monitor| {
-            thread::spawn(move || {
-                Limbo::run(Settings {
-                    layer_settings: LayerShellSettings {
-                        size: Some((0, 40)),
-                        exclusive_zone: 40,
-                        anchor: Anchor::Top | Anchor::Left | Anchor::Right,
-                        keyboard_interactivity: KeyboardInteractivity::None,
-                        start_mode: StartMode::TargetScreen(monitor.clone()),
-                        ..Default::default()
-                    },
-                    flags: Flags { monitor },
+    let mut tasks = vec![];
+    while let Ok(monitor) = monitors.recv() {
+        let task = std::thread::spawn(move || {
+            Limbo::run(Settings {
+                layer_settings: LayerShellSettings {
+                    size: Some((0, 40)),
+                    exclusive_zone: 40,
+                    anchor: Anchor::Top | Anchor::Left | Anchor::Right,
+                    keyboard_interactivity: KeyboardInteractivity::None,
+                    start_mode: StartMode::TargetScreen(monitor.name()),
                     ..Default::default()
-                })
+                },
+                flags: Flags {
+                    monitor, // desktop_msgs
+                },
+                id: None,
+                fonts: Vec::new(),
+                default_font: iced::Font::default(),
+                default_text_size: iced::Pixels(16.0),
+                antialiasing: false,
+                virtual_keyboard_support: None,
             })
-        })
-        .collect::<Vec<_>>();
+        });
+        tasks.push(task);
+    }
 
     for task in tasks {
         task.join().unwrap().unwrap();
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug)]
 struct Flags {
-    monitor: String,
+    monitor: Monitor,
 }
 
 struct Limbo {
-    monitor: String,
+    monitor: Monitor,
+    workspaces_info: MonitorInfo,
 
     clock: Clock,
 }
 
-// Because new iced delete the custom command, so now we make a macro crate to generate
-// the Command
 #[to_layer_message]
 #[derive(Debug, Clone)]
-#[doc = "Some docs"]
 pub enum Message {
-    WorkspaceChanged(i32),
-    WorkspaceCreated(i32),
-    WorkspaceDestroyed(i32),
+    DesktopEvent(DesktopEvent),
     IcedEvent(Event),
 
     Clock(ClockMessage),
@@ -96,13 +87,14 @@ impl Application for Limbo {
     type Theme = Theme;
     type Executor = iced::executor::Default;
 
-    fn new(flags: Self::Flags) -> (Self, Command<Message>) {
+    fn new(flags: Self::Flags) -> (Self, Task<Message>) {
         (
             Self {
                 monitor: flags.monitor,
+                workspaces_info: Default::default(),
                 clock: Clock::new(),
             },
-            Command::none(),
+            Task::none(),
         )
     }
 
@@ -112,33 +104,28 @@ impl Application for Limbo {
 
     fn subscription(&self) -> iced::Subscription<Self::Message> {
         let subscriptions = vec![
-            hyprland_subscription(),
+            self.monitor.subscription().map(Message::DesktopEvent),
             self.clock.subscription().map(Message::Clock),
         ];
         iced::Subscription::batch(subscriptions)
     }
 
-    fn update(&mut self, message: Message) -> Command<Message> {
+    fn update(&mut self, message: Message) -> Task<Message> {
         match message {
+            Message::DesktopEvent(DesktopEvent::Quit) => {
+                iced::window::get_oldest().then(|id| iced::window::close(id.unwrap()))
+            }
+            Message::DesktopEvent(DesktopEvent::WorkspacesChanged(workspaces_info)) => {
+                self.workspaces_info = workspaces_info;
+                Task::none()
+            }
             Message::IcedEvent(event) => {
                 println!("{event:?}");
-                Command::none()
-            }
-            Message::WorkspaceChanged(id) => {
-                println!("workspace changed to {id:?}");
-                Command::none()
-            }
-            Message::WorkspaceCreated(id) => {
-                println!("workspace created: {id:?}");
-                Command::none()
-            }
-            Message::WorkspaceDestroyed(id) => {
-                println!("workspace destroyed: {id:?}");
-                Command::none()
+                Task::none()
             }
             Message::Clock(msg) => {
                 self.clock.update(msg);
-                Command::none()
+                Task::none()
             }
             _ => unreachable!(),
         }
@@ -181,22 +168,11 @@ impl Application for Limbo {
     fn style(&self, theme: &Self::Theme) -> iced_layershell::Appearance {
         use iced_layershell::Appearance;
 
-        let active_workspaces = Monitors::get()
-            .unwrap()
-            .iter()
-            .map(|m| m.active_workspace.id)
-            .collect::<Vec<_>>();
-        let workspaces = Workspaces::get().unwrap();
-        let workspace = workspaces
-            .iter()
-            .find(|w| w.monitor == self.monitor && active_workspaces.contains(&w.id))
-            .unwrap();
-
         Appearance {
-            background_color: if workspace.windows > 0 {
-                theme.palette().background
-            } else {
+            background_color: if self.workspaces_info.show_transparent {
                 Color::TRANSPARENT
+            } else {
+                theme.palette().background
             },
             text_color: theme.palette().text,
         }

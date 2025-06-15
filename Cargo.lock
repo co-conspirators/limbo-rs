@@ -1687,9 +1687,9 @@ dependencies = [
 
 [[package]]
 name = "iced_layershell"
-version = "0.13.6"
+version = "0.13.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d56e4cf1c9d0950ab16b588460492db2dc265fdd1054548b79a144943027d947"
+checksum = "9c9ff107c0d7ca85e81566f391f5acabc2473f87ed7de33aaef7b4d600592067"
 dependencies = [
  "futures",
  "iced",
@@ -1708,9 +1708,9 @@ dependencies = [
 
 [[package]]
 name = "iced_layershell_macros"
-version = "0.13.6"
+version = "0.13.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48abc9327f3e196f9fbafd41f0091aa04a1cbdd7cf7e3091dbee73ba47c27808"
+checksum = "fc7a9be2dc188479ea8c327432b55727cbab17be0d79e7eb3df14727191068f1"
 dependencies = [
  "darling",
  "manyhow",
@@ -1875,9 +1875,9 @@ checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
 
 [[package]]
 name = "jiff"
-version = "0.2.14"
+version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a194df1107f33c79f4f93d02c80798520551949d59dfad22b6157048a88cca93"
+checksum = "be1f93b8b1eb69c77f24bbb0afdf66f54b632ee39af40ca21c4365a1d7347e49"
 dependencies = [
  "jiff-static",
  "jiff-tzdb-platform",
@@ -1890,9 +1890,9 @@ dependencies = [
 
 [[package]]
 name = "jiff-static"
-version = "0.2.14"
+version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c6e1db7ed32c6c71b759497fae34bf7933636f75a251b9e736555da426f6442"
+checksum = "03343451ff899767262ec32146f6d559dd759fdadf42ff0e227c7c48f72594b4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2013,9 +2013,9 @@ dependencies = [
 
 [[package]]
 name = "layershellev"
-version = "0.13.6"
+version = "0.13.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76ae9a2c0720f41a39d0c7bad4e897c2c846b80965ae3e6fb02a5891b0b73b48"
+checksum = "6e5dd46870775aec1b5265b29f3dbd38845423dff5bb1a11e0f7c12e312e6ecf"
 dependencies = [
  "bitflags 2.9.1",
  "calloop 0.14.2",
@@ -2086,10 +2086,12 @@ dependencies = [
 name = "limbo"
 version = "0.1.0"
 dependencies = [
+ "async-stream",
  "hyprland",
  "iced",
  "iced_layershell",
  "jiff",
+ "niri-ipc",
  "rust-embed",
  "tokio",
 ]
@@ -2290,6 +2292,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee6cda3051665f1fb8d9e08fc35c96d5a244fb1be711a03b71118828afc9a873"
 dependencies = [
  "jni-sys",
+]
+
+[[package]]
+name = "niri-ipc"
+version = "25.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc3e165f7854b2f83054a2e8f7024baa49666ad25cdb95b8fb9fd17c48045605"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -3985,9 +3997,9 @@ dependencies = [
 
 [[package]]
 name = "waycrate_xkbkeycode"
-version = "0.13.6"
+version = "0.13.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b17e7c7aff5b41bcef3d4315e4349293f6629f2ca50ff4955789acb0af06be4"
+checksum = "7a36a4a1e2ae0ef1d628f031e441ec5db79fcce5f888e8082b69340eb7fcd90d"
 dependencies = [
  "bitflags 2.9.1",
  "calloop 0.14.2",

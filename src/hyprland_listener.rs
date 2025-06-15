@@ -1,8 +1,8 @@
 use std::thread;
-use tokio::sync::mpsc;
 
 use hyprland::event_listener::EventListener;
 use iced::{Subscription, stream};
+use tokio::sync::mpsc;
 
 use crate::Message;
 
