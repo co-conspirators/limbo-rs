@@ -7,6 +7,7 @@ mod hyprland_desktop;
 #[cfg(feature = "niri")]
 mod niri_desktop;
 
+#[allow(inactive_code)]
 #[cfg(not(any(feature = "hyprland", feature = "niri")))]
 compile_error!("At least one of \"hyprland\" or \"niri\" must be enabled.");
 
@@ -22,20 +23,14 @@ pub struct MonitorInfo {
     pub show_transparent: bool,
 }
 
-#[derive(Debug, Clone)]
-pub enum DesktopEvent {
-    Quit,
-    MonitorInfoEvent(MonitorInfo),
-}
-
 #[derive(Debug)]
 pub struct Monitor {
     name: String,
-    rx: Arc<Mutex<watch::Receiver<DesktopEvent>>>,
+    rx: Arc<Mutex<watch::Receiver<MonitorInfo>>>,
 }
 
 impl Monitor {
-    fn new(name: String, rx: watch::Receiver<DesktopEvent>) -> Self {
+    fn new(name: String, rx: watch::Receiver<MonitorInfo>) -> Self {
         Self {
             name,
             rx: Arc::new(Mutex::new(rx)),
@@ -46,7 +41,7 @@ impl Monitor {
         self.name.clone()
     }
 
-    pub fn subscription(&self) -> iced::Subscription<DesktopEvent> {
+    pub fn subscription(&self) -> iced::Subscription<MonitorInfo> {
         iced::advanced::subscription::from_recipe(watch_subscription::WatchRecipe {
             monitor: self.name.clone(),
             rx: self.rx.clone(),

@@ -8,7 +8,7 @@ use iced_layershell::{
 
 use crate::{
     components::{icon, section, side},
-    desktop_environment::{DesktopEvent, Monitor, MonitorInfo},
+    desktop_environment::{Monitor, MonitorInfo},
     sections::clock::{Clock, ClockMessage},
 };
 
@@ -32,7 +32,8 @@ pub fn main() {
     let mut tasks = vec![];
     while let Ok(monitor) = monitors.recv() {
         let task = std::thread::spawn(move || {
-            Limbo::run(Settings {
+            let name = monitor.name();
+            let r = Limbo::run(Settings {
                 layer_settings: LayerShellSettings {
                     size: Some((0, 40)),
                     exclusive_zone: 40,
@@ -50,7 +51,9 @@ pub fn main() {
                 default_text_size: iced::Pixels(16.0),
                 antialiasing: false,
                 virtual_keyboard_support: None,
-            })
+            });
+            println!("exiting on {name}");
+            r
         });
         tasks.push(task);
     }
@@ -67,7 +70,7 @@ struct Flags {
 
 struct Limbo {
     monitor: Monitor,
-    workspaces_info: MonitorInfo,
+    monitor_info: MonitorInfo,
 
     clock: Clock,
 }
@@ -75,7 +78,7 @@ struct Limbo {
 #[to_layer_message]
 #[derive(Debug, Clone)]
 pub enum Message {
-    DesktopEvent(DesktopEvent),
+    DesktopEvent(MonitorInfo),
     IcedEvent(Event),
 
     Clock(ClockMessage),
@@ -91,7 +94,7 @@ impl Application for Limbo {
         (
             Self {
                 monitor: flags.monitor,
-                workspaces_info: Default::default(),
+                monitor_info: Default::default(),
                 clock: Clock::new(),
             },
             Task::none(),
@@ -112,11 +115,8 @@ impl Application for Limbo {
 
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::DesktopEvent(DesktopEvent::Quit) => {
-                iced::window::get_oldest().then(|id| iced::window::close(id.unwrap()))
-            }
-            Message::DesktopEvent(DesktopEvent::MonitorInfoEvent(workspaces_info)) => {
-                self.workspaces_info = workspaces_info;
+            Message::DesktopEvent(monitor_info) => {
+                self.monitor_info = monitor_info;
                 Task::none()
             }
             Message::IcedEvent(event) => {
@@ -169,7 +169,7 @@ impl Application for Limbo {
         use iced_layershell::Appearance;
 
         Appearance {
-            background_color: if self.workspaces_info.show_transparent {
+            background_color: if self.monitor_info.show_transparent {
                 Color::TRANSPARENT
             } else {
                 theme.palette().background
