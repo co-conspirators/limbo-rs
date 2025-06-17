@@ -35,7 +35,7 @@ pub fn section<'a, Message>(
         .height(Length::Fill)
 }
 
-pub fn icon(name: &str, color: Option<Color>) -> Svg {
+pub fn icon(name: &'_ str, color: Option<Color>) -> Svg<'_> {
     svg(Handle::from_memory(
         Icons::get(&format!("{name}.svg")).unwrap().data,
     ))
@@ -43,7 +43,7 @@ pub fn icon(name: &str, color: Option<Color>) -> Svg {
     .width(Length::Shrink)
 }
 
-pub fn icon_filled(name: &str, color: Option<Color>) -> Svg {
+pub fn icon_filled(name: &'_ str, color: Option<Color>) -> Svg<'_> {
     svg(Handle::from_memory(
         IconsFilled::get(&format!("{name}.svg")).unwrap().data,
     ))
