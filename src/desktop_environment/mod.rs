@@ -11,15 +11,15 @@ mod niri_desktop;
 #[cfg(not(any(feature = "hyprland", feature = "niri")))]
 compile_error!("At least one of \"hyprland\" or \"niri\" must be enabled.");
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct WorkspaceInfo {
     pub has_windows: bool,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct MonitorInfo {
     pub workspaces: Vec<WorkspaceInfo>,
-    pub active_workspace_idx: Option<u8>,
+    pub active_workspace_idx: Option<usize>,
     pub show_transparent: bool,
 }
 
@@ -64,7 +64,7 @@ pub fn listen_monitors() -> mpsc::Receiver<Monitor> {
     {
         use hyprland::shared::HyprData;
         if hyprland::data::Version::get().is_ok() {
-            todo!();
+            return hyprland_desktop::listen_monitors();
         }
     }
 

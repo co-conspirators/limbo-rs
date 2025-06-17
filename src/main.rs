@@ -17,7 +17,8 @@ mod desktop_environment;
 mod icons;
 mod sections;
 
-pub fn main() {
+#[tokio::main]
+pub async fn main() {
     // Workaround for https://github.com/friedow/centerpiece/issues/237
     // WGPU picks the lower power GPU by default, which on some systems,
     // will pick an IGPU that doesn't exist leading to a black screen.
@@ -42,9 +43,7 @@ pub fn main() {
                     start_mode: StartMode::TargetScreen(monitor.name()),
                     ..Default::default()
                 },
-                flags: Flags {
-                    monitor, // desktop_msgs
-                },
+                flags: Flags { monitor },
                 id: None,
                 fonts: Vec::new(),
                 default_font: iced::Font::default(),

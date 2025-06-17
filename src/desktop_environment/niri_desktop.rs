@@ -20,7 +20,7 @@ pub fn listen_monitors(mut socket: Socket) -> mpsc::Receiver<Monitor> {
 
     let read_event = socket.read_events();
     let (mtx, mrx) = mpsc::channel();
-    std::thread::spawn(move || run(read_event, mtx));
+    tokio::task::spawn_blocking(move || run(read_event, mtx));
 
     mrx
 }
@@ -64,10 +64,11 @@ fn run(
                     let active_workspace_idx = workspaces_on_output
                         .iter()
                         .find(|w| w.is_active)
-                        .map(|w| w.idx - 1);
+                        .map(|w| w.idx as usize - 1);
                     let show_transparent = overview_open
                         || !active_workspace_idx
-                            .map(|idx| workspaces_infos[idx as usize].has_windows)
+                            .and_then(|idx| workspaces_infos.get(idx))
+                            .map(|w| w.has_windows)
                             .unwrap_or_default();
 
                     let monitor_info = MonitorInfo {
@@ -79,8 +80,8 @@ fn run(
                     if let Some(tx) = senders.get_mut(&output) {
                         tx.send_replace(monitor_info);
                     } else {
-                        let (tx, rx) = watch::channel(monitor_info);
-
+                        let (tx, mut rx) = watch::channel(monitor_info);
+                        rx.mark_changed();
                         let _ = mtx.send(Monitor::new(output.clone(), rx));
                         senders.insert(output.clone(), tx);
                     }
@@ -93,12 +94,12 @@ fn run(
                     && let Some(output) = &workspace.output
                     && let Some(tx) = senders.get_mut(output)
                 {
-                    let idx = workspace.idx - 1;
+                    let idx = workspace.idx as usize - 1;
                     tx.send_if_modified(|monitor_info| {
                         let show_transparent = overview_open
                             || !monitor_info
                                 .workspaces
-                                .get(idx as usize)
+                                .get(idx)
                                 .map(|w| w.has_windows)
                                 .unwrap_or_default();
                         let modified = (
@@ -123,7 +124,7 @@ fn run(
                     tx.send_if_modified(|monitor_info| {
                         if let Some(active_workspace_info) = monitor_info
                             .active_workspace_idx
-                            .and_then(|idx| monitor_info.workspaces.get_mut(idx as usize))
+                            .and_then(|idx| monitor_info.workspaces.get_mut(idx))
                         {
                             let show_transparent =
                                 overview_open || !active_workspace_info.has_windows;
@@ -147,7 +148,7 @@ fn run(
                         let show_transparent = overview_open
                             || !monitor_info
                                 .active_workspace_idx
-                                .and_then(|idx| monitor_info.workspaces.get(idx as usize))
+                                .and_then(|idx| monitor_info.workspaces.get(idx))
                                 .map(|w| w.has_windows)
                                 .unwrap_or_default();
                         let modified = monitor_info.show_transparent != show_transparent;
