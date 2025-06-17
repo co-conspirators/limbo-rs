@@ -2086,7 +2086,6 @@ dependencies = [
 name = "limbo"
 version = "0.1.0"
 dependencies = [
- "async-stream",
  "hyprland",
  "iced",
  "iced_layershell",
