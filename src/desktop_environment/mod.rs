@@ -1,9 +1,14 @@
 use std::sync::{Arc, mpsc};
 
-use hyprland::shared::HyprData;
 use tokio::sync::{Mutex, watch};
 
+#[cfg(feature = "hyprland")]
+mod hyprland_desktop;
+#[cfg(feature = "niri")]
 mod niri_desktop;
+
+#[cfg(not(any(feature = "hyprland", feature = "niri")))]
+compile_error!("At least one of \"hyprland\" or \"niri\" must be enabled.");
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct WorkspaceInfo {
@@ -50,13 +55,20 @@ impl Monitor {
 }
 
 pub fn listen_monitors() -> mpsc::Receiver<Monitor> {
-    if hyprland::data::Version::get().is_ok() {
-        todo!();
-    } else if let Ok(socket) = niri_ipc::socket::Socket::connect() {
-        niri_desktop::listen_monitors(socket)
-    } else {
-        panic!("no compatible desktop environment detected");
+    #[cfg(feature = "hyprland")]
+    {
+        use hyprland::shared::HyprData;
+        if hyprland::data::Version::get().is_ok() {
+            todo!();
+        }
     }
+
+    #[cfg(feature = "niri")]
+    if let Ok(socket) = niri_ipc::socket::Socket::connect() {
+        return niri_desktop::listen_monitors(socket);
+    }
+
+    panic!("no compatible desktop environment detected");
 }
 
 mod watch_subscription {
