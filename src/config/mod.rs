@@ -1,8 +1,8 @@
+use std::{collections::HashMap, path::PathBuf};
+
 use clap::Parser;
 use config::{Config as ConfigBuilder, ConfigError, Environment, File};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::path::PathBuf;
 
 mod types;
 pub use types::Config;
