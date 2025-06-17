@@ -20,7 +20,7 @@ pub struct MonitorInfo {
 #[derive(Debug, Clone)]
 pub enum DesktopEvent {
     Quit,
-    WorkspacesChanged(MonitorInfo),
+    MonitorInfoEvent(MonitorInfo),
 }
 
 #[derive(Debug)]

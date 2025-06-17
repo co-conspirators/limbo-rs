@@ -88,7 +88,7 @@ fn run(
 
                     if let Some(tx) = senders.get_mut(&output) {
                         let _ = tx.send_if_modified(|e| {
-                            if let DesktopEvent::WorkspacesChanged(wi) = e {
+                            if let DesktopEvent::MonitorInfoEvent(wi) = e {
                                 *wi = workspaces_info;
                                 true
                             } else {
@@ -97,7 +97,7 @@ fn run(
                         });
                     } else {
                         let (tx, rx) =
-                            watch::channel(DesktopEvent::WorkspacesChanged(workspaces_info));
+                            watch::channel(DesktopEvent::MonitorInfoEvent(workspaces_info));
 
                         let _ = mtx.send(Monitor::new(output.clone(), rx));
                         senders.insert(output.clone(), tx);
@@ -111,13 +111,20 @@ fn run(
                     && let Some(output) = &workspace.output
                     && let Some(tx) = senders.get_mut(output)
                 {
-                    let idx = Some(workspace.idx - 1);
+                    let idx = workspace.idx - 1;
                     let _ = tx.send_if_modified(|e| {
-                        if let DesktopEvent::WorkspacesChanged(w) = e
-                            && w.active_workspace_idx != idx
-                        {
-                            w.active_workspace_idx = idx;
-                            true
+                        if let DesktopEvent::MonitorInfoEvent(w) = e {
+                            let show_transparent = overview_open
+                                || !w
+                                    .workspaces
+                                    .get(idx as usize)
+                                    .map(|w| w.has_windows)
+                                    .unwrap_or_default();
+                            let modified = (w.show_transparent, w.active_workspace_idx)
+                                != (show_transparent, Some(idx));
+                            w.show_transparent = show_transparent;
+                            w.active_workspace_idx = Some(idx);
+                            modified
                         } else {
                             false
                         }
@@ -134,7 +141,7 @@ fn run(
                 {
                     let has_windows = active_window_id.is_some();
                     let _ = tx.send_if_modified(|e| {
-                        if let DesktopEvent::WorkspacesChanged(w) = e
+                        if let DesktopEvent::MonitorInfoEvent(w) = e
                             && let Some(wi) = w
                                 .active_workspace_idx
                                 .and_then(|i| w.workspaces.get_mut(i as usize))
@@ -155,7 +162,7 @@ fn run(
                 overview_open = is_open;
                 for tx in senders.values_mut() {
                     let _ = tx.send_if_modified(|e| {
-                        if let DesktopEvent::WorkspacesChanged(w) = e {
+                        if let DesktopEvent::MonitorInfoEvent(w) = e {
                             let show_transparent = overview_open
                                 || !w
                                     .active_workspace_idx

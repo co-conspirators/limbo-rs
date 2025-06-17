@@ -115,7 +115,7 @@ impl Application for Limbo {
             Message::DesktopEvent(DesktopEvent::Quit) => {
                 iced::window::get_oldest().then(|id| iced::window::close(id.unwrap()))
             }
-            Message::DesktopEvent(DesktopEvent::WorkspacesChanged(workspaces_info)) => {
+            Message::DesktopEvent(DesktopEvent::MonitorInfoEvent(workspaces_info)) => {
                 self.workspaces_info = workspaces_info;
                 Task::none()
             }
