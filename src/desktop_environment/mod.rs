@@ -42,10 +42,20 @@ impl Monitor {
     }
 
     pub fn subscription(&self) -> iced::Subscription<MonitorInfo> {
-        iced::advanced::subscription::from_recipe(watch_subscription::WatchRecipe {
-            monitor: self.name.clone(),
-            rx: self.rx.clone(),
-        })
+        iced::Subscription::run_with_id(
+            self.name.clone(),
+            iced::futures::stream::unfold(self.rx.clone(), |rx| async move {
+                let value = {
+                    let mut rx = rx.lock().await;
+                    if rx.changed().await.is_ok() {
+                        Some(rx.borrow().clone())
+                    } else {
+                        None
+                    }
+                };
+                value.map(|v| (v, rx))
+            }),
+        )
     }
 }
 
@@ -64,46 +74,4 @@ pub fn listen_monitors() -> mpsc::Receiver<Monitor> {
     }
 
     panic!("no compatible desktop environment detected");
-}
-
-mod watch_subscription {
-    use std::{any::TypeId, hash::Hash, sync::Arc};
-
-    use iced::futures::StreamExt;
-    use tokio::sync::{Mutex, watch};
-
-    pub struct WatchRecipe<T: Clone + Send + 'static> {
-        pub monitor: String,
-        pub rx: Arc<Mutex<watch::Receiver<T>>>,
-    }
-
-    impl<T> iced::advanced::subscription::Recipe for WatchRecipe<T>
-    where
-        T: Clone + Send + Sync + 'static,
-    {
-        type Output = T;
-
-        fn hash(&self, state: &mut iced::advanced::subscription::Hasher) {
-            TypeId::of::<WatchRecipe<T>>().hash(state);
-            self.monitor.hash(state);
-        }
-
-        fn stream(
-            self: Box<Self>,
-            _input: iced::advanced::subscription::EventStream,
-        ) -> iced::advanced::graphics::futures::BoxStream<Self::Output> {
-            let rx = self.rx.clone();
-            async_stream::stream! {
-                let mut rx = rx.lock().await;
-                let initial = rx.borrow_and_update().clone();
-                yield initial;
-
-                while rx.changed().await.is_ok() {
-                    let updated = rx.borrow_and_update().clone();
-                    yield updated;
-                }
-            }
-            .boxed()
-        }
-    }
 }
