@@ -1,14 +1,13 @@
-use iced::{Alignment, Color, Element, Event, Length, Task, Theme, widget::row};
-use iced_layershell::{
-    Application,
-    reexport::{Anchor, KeyboardInteractivity},
-    settings::{LayerShellSettings, Settings, StartMode},
-    to_layer_message,
+use std::{collections::HashMap, sync::LazyLock};
+
+use iced::{
+    Alignment, Color, Element, Event, Length, Padding, Size, Task, Theme, layer_shell,
+    theme::Palette, widget::row, window,
 };
 
 use crate::{
     components::{icon, section, side},
-    desktop_environment::{Monitor, MonitorInfo},
+    desktop_environment::OutputInfo,
     sections::clock::{Clock, ClockMessage},
 };
 
@@ -17,8 +16,17 @@ mod desktop_environment;
 mod icons;
 mod sections;
 
-#[tokio::main]
-pub async fn main() {
+static CATPPUCCIN_MOCHA_TRANSPARENT: LazyLock<Theme> = LazyLock::new(|| {
+    Theme::custom(
+        "CatpuccinMocha Transparent",
+        Palette {
+            background: Color::TRANSPARENT,
+            ..Palette::CATPPUCCIN_MOCHA
+        },
+    )
+});
+
+pub fn main() {
     // Workaround for https://github.com/friedow/centerpiece/issues/237
     // WGPU picks the lower power GPU by default, which on some systems,
     // will pick an IGPU that doesn't exist leading to a black screen.
@@ -28,85 +36,50 @@ pub async fn main() {
         }
     }
 
-    let monitors = desktop_environment::listen_monitors();
-
-    let mut tasks = vec![];
-    while let Ok(monitor) = monitors.recv() {
-        let task = std::thread::spawn(move || {
-            let name = monitor.name();
-            let r = Limbo::run(Settings {
-                layer_settings: LayerShellSettings {
-                    size: Some((0, 40)),
-                    exclusive_zone: 40,
-                    anchor: Anchor::Top | Anchor::Left | Anchor::Right,
-                    keyboard_interactivity: KeyboardInteractivity::None,
-                    start_mode: StartMode::TargetScreen(monitor.name()),
-                    ..Default::default()
-                },
-                flags: Flags { monitor },
-                id: None,
-                fonts: Vec::new(),
-                default_font: iced::Font::default(),
-                default_text_size: iced::Pixels(16.0),
-                antialiasing: false,
-                virtual_keyboard_support: None,
-            });
-            println!("exiting on {name}");
-            r
-        });
-        tasks.push(task);
-    }
-
-    for task in tasks {
-        task.join().unwrap().unwrap();
-    }
-}
-
-#[derive(Debug)]
-struct Flags {
-    monitor: Monitor,
+    iced::daemon(Limbo::new, Limbo::update, Limbo::view)
+        .subscription(Limbo::subscription)
+        .theme(Limbo::theme)
+        .run()
+        .unwrap();
 }
 
 struct Limbo {
-    monitor: Monitor,
-    monitor_info: MonitorInfo,
+    layers: HashMap<String, window::Id>,
+    layer_aliases: HashMap<window::Id, String>,
+    output_infos: HashMap<String, OutputInfo>,
 
     clock: Clock,
 }
 
-#[to_layer_message]
 #[derive(Debug, Clone)]
 pub enum Message {
-    DesktopEvent(MonitorInfo),
+    DesktopEvent(OutputInfo),
     IcedEvent(Event),
+    WaylandEvent(iced::event::Wayland),
+
+    LayerOpened((window::Id, String)),
 
     Clock(ClockMessage),
 }
 
-impl Application for Limbo {
-    type Message = Message;
-    type Flags = Flags;
-    type Theme = Theme;
-    type Executor = iced::executor::Default;
-
-    fn new(flags: Self::Flags) -> (Self, Task<Message>) {
+impl Limbo {
+    fn new() -> (Self, Task<Message>) {
         (
             Self {
-                monitor: flags.monitor,
-                monitor_info: Default::default(),
+                layers: HashMap::new(),
+                layer_aliases: HashMap::new(),
+                output_infos: HashMap::new(),
                 clock: Clock::new(),
             },
-            Task::none(),
+            desktop_environment::listen()
+                .map(|stream| Task::stream(stream).map(Message::DesktopEvent))
+                .unwrap_or(Task::none()),
         )
     }
 
-    fn namespace(&self) -> String {
-        "Limbo".to_string()
-    }
-
-    fn subscription(&self) -> iced::Subscription<Self::Message> {
+    fn subscription(&self) -> iced::Subscription<Message> {
         let subscriptions = vec![
-            self.monitor.subscription().map(Message::DesktopEvent),
+            iced::event::listen_wayland().map(Message::WaylandEvent),
             self.clock.subscription().map(Message::Clock),
         ];
         iced::Subscription::batch(subscriptions)
@@ -114,23 +87,55 @@ impl Application for Limbo {
 
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::DesktopEvent(monitor_info) => {
-                self.monitor_info = monitor_info;
+            Message::DesktopEvent(output_info) => {
+                let _ = self
+                    .output_infos
+                    .insert(output_info.name.clone(), output_info);
                 Task::none()
             }
             Message::IcedEvent(event) => {
                 println!("{event:?}");
                 Task::none()
             }
+            Message::WaylandEvent(event) => match event {
+                iced::event::Wayland::OutputAdded(output) => {
+                    let (_id, task) = layer_shell::open(layer_shell::Settings {
+                        layer: layer_shell::Layer::Top,
+                        namespace: Some("limbo".to_string()),
+                        size: Size::new(0, 40),
+                        anchor: layer_shell::Anchor::TOP
+                            | layer_shell::Anchor::LEFT
+                            | layer_shell::Anchor::RIGHT,
+                        exclusive_zone: 40,
+                        margin: Padding::default(),
+                        keyboard_interactivity: layer_shell::KeyboardInteractivity::None,
+                        output: Some(output.clone()),
+                    });
+
+                    task.map(move |id| Message::LayerOpened((id, output.clone())))
+                }
+                iced::event::Wayland::OutputRemoved(output) => {
+                    if let Some(id) = self.layers.remove(&output) {
+                        let _ = self.layer_aliases.remove(&id);
+                        layer_shell::close::<Message>(id).discard()
+                    } else {
+                        Task::none()
+                    }
+                }
+            },
+            Message::LayerOpened((id, output)) => {
+                let _ = self.layers.insert(output.clone(), id);
+                let _ = self.layer_aliases.insert(id, output);
+                Task::none()
+            }
             Message::Clock(msg) => {
                 self.clock.update(msg);
                 Task::none()
             }
-            _ => unreachable!(),
         }
     }
 
-    fn view(&self) -> Element<'_, Message> {
+    fn view(&self, _id: window::Id) -> Element<'_, Message> {
         row![
             // Left
             side(
@@ -160,20 +165,17 @@ impl Application for Limbo {
         .into()
     }
 
-    fn theme(&self) -> Self::Theme {
-        Theme::CatppuccinMocha
-    }
+    fn theme(&self, id: window::Id) -> Theme {
+        let show_transparent = self
+            .layer_aliases
+            .get(&id)
+            .and_then(|output| self.output_infos.get(output))
+            .is_some_and(|info| info.show_transparent);
 
-    fn style(&self, theme: &Self::Theme) -> iced_layershell::Appearance {
-        use iced_layershell::Appearance;
-
-        Appearance {
-            background_color: if self.monitor_info.show_transparent {
-                Color::TRANSPARENT
-            } else {
-                theme.palette().background
-            },
-            text_color: theme.palette().text,
+        if show_transparent {
+            CATPPUCCIN_MOCHA_TRANSPARENT.clone()
+        } else {
+            Theme::CatppuccinMocha
         }
     }
 }
