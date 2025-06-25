@@ -69,6 +69,7 @@
               text = "cargo-watch -c -w . -x run";
             };
           in with pkgs; [
+            pkg-config
             cargo-watch
             dev
 
@@ -81,6 +82,8 @@
             ])
             pkgs.rust-analyzer-nightly
           ];
+
+          buildInputs = libs;
 
           env.LD_LIBRARY_PATH = "${libPaths}";
         };
