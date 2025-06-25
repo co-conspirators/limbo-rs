@@ -45,21 +45,20 @@
           default = self'.packages.limbo-rs;
         };
 
-        devShells.default = pkgs.mkShell {
-          buildInputs = let
-            dev = pkgs.writeShellApplication {
-              name = "dev";
-              runtimeInputs = with pkgs; [ cargo-watch ];
-              text = "cargo-watch -c -w . -x run";
-            };
-          in with pkgs; [ cargo-watch dev ];
+        devShells.default = pkgs.mkShell rec {
+            nativeBuildInputs = let
+              dev = pkgs.writeShellApplication {
+                name = "dev";
+                runtimeInputs = with pkgs; [ cargo-watch ];
+                text = "cargo-watch -c -w . -x run";
+              };
+            in with pkgs; [ pkg-config cargo-watch dev ];
 
-          shellHook = let
-            libs = with pkgs; [ wayland libxkbcommon vulkan-loader libGL ];
-            libPaths = lib.makeLibraryPath libs;
-          in ''
-            export LD_LIBRARY_PATH="${libPaths}:$LD_LIBRARY_PATH"
-          '';
+            buildInputs = with pkgs; [wayland libxkbcommon vulkan-loader libGL];
+
+            shellHook = ''
+              export LD_LIBRARY_PATH="${lib.makeLibraryPath buildInputs}:$LD_LIBRARY_PATH"
+            '';
         };
       };
     };
