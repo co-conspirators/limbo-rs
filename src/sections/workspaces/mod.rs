@@ -8,9 +8,7 @@ use iced::{
 
 use crate::{
     components::section,
-    desktop_environment::{
-        MonitorInfo, WorkspaceId, WorkspaceInfo, cycle_workspace, focus_workspace,
-    },
+    desktop_environment::{Desktop, WorkspaceId, WorkspaceInfos},
 };
 
 mod state;
@@ -18,46 +16,50 @@ use state::WorkspaceState;
 
 pub struct Workspaces {
     workspaces: Vec<WorkspaceState>,
-    workspace_infos: Vec<WorkspaceInfo>,
-    active_workspace_id: i32,
 }
 
 #[derive(Debug, Clone)]
 pub enum WorkspacesMessage {
     Tick,
-    DesktopEvent(MonitorInfo),
+    WorkspacesChanged(WorkspaceInfos),
     FocusWorkspace(WorkspaceId),
     CycleWorkspace(bool),
 }
 
 impl Workspaces {
-    pub fn new(workspaces: Vec<WorkspaceId>) -> Self {
+    pub fn new(mut workspace_infos: WorkspaceInfos) -> Self {
+        workspace_infos.sort_by_key(|w| w.idx);
         Self {
-            workspaces: workspaces
-                .iter()
-                .map(|id| WorkspaceState::new(*id, false))
+            workspaces: workspace_infos
+                .into_iter()
+                .map(WorkspaceState::new)
                 .collect(),
-            workspace_infos: Vec::new(),
-            active_workspace_id: -1,
         }
     }
 
-    pub fn update(&mut self, message: WorkspacesMessage) {
+    pub fn update(&mut self, message: WorkspacesMessage, desktop: &mut Desktop) {
         match message {
             WorkspacesMessage::Tick => {
                 for w in &mut self.workspaces {
                     w.update();
                 }
             }
-            WorkspacesMessage::DesktopEvent(monitor_info) => {
-                self.workspace_infos = monitor_info.workspaces;
-                self.active_workspace_id = monitor_info.active_workspace_id;
-                for w in &mut self.workspaces {
-                    w.set_active(w.id == self.active_workspace_id);
+            WorkspacesMessage::WorkspacesChanged(mut workspace_infos) => {
+                workspace_infos.sort_by_key(|w| w.idx);
+                let len = workspace_infos.len();
+                for (i, workspace_info) in workspace_infos.into_iter().enumerate() {
+                    if let Some(state) = self.workspaces.get_mut(i) {
+                        state.workspace_info = workspace_info;
+                    } else {
+                        self.workspaces.push(WorkspaceState::new(workspace_info));
+                    }
                 }
+                self.workspaces.truncate(len);
             }
-            WorkspacesMessage::FocusWorkspace(workspace_id) => focus_workspace(workspace_id),
-            WorkspacesMessage::CycleWorkspace(forward) => cycle_workspace(forward),
+            WorkspacesMessage::FocusWorkspace(workspace_id) => {
+                desktop.focus_workspace(workspace_id)
+            }
+            WorkspacesMessage::CycleWorkspace(forward) => desktop.cycle_workspace(forward),
         }
     }
 
@@ -66,9 +68,7 @@ impl Workspaces {
             .workspaces
             .iter()
             .map(|w| {
-                let info = self.workspace_infos.iter().find(|i| i.id == w.id);
-                let has_windows = info.map(|w| w.has_windows).unwrap_or_default();
-                let color = if has_windows || w.active {
+                let color = if w.workspace_info.has_windows || w.workspace_info.is_active {
                     Color::from_rgb8(137, 180, 250)
                 } else {
                     Color::from_rgb8(88, 91, 112)
@@ -90,7 +90,7 @@ impl Workspaces {
                     ))
                     .padding([8, 15 - width]),
                 )
-                .on_press(WorkspacesMessage::FocusWorkspace(w.id))
+                .on_press(WorkspacesMessage::FocusWorkspace(w.workspace_info.id))
                 .on_scroll(|delta| {
                     let y = match delta {
                         mouse::ScrollDelta::Pixels { y, .. } => y,

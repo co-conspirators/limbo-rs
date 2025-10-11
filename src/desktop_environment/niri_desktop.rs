@@ -1,166 +1,126 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::mpsc,
+use std::collections::HashSet;
+
+use iced::futures::{
+    StreamExt,
+    stream::{once, unfold},
+};
+use niri_ipc::{
+    Action, Request, Response,
+    socket::Socket,
+    state::{EventStreamState, EventStreamStatePart},
+};
+use tokio::{
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+    net::{UnixSocket, UnixStream},
 };
 
-use niri_ipc::{Request, Response, Workspace, socket::Socket};
-use tokio::sync::watch;
+use super::{DesktopEvent, WorkspaceId, WorkspaceInfo, WorkspaceInfos};
 
-use super::{Monitor, MonitorInfo, WorkspaceInfo};
+pub struct NiriDesktop {
+    socket: Socket,
+}
+impl NiriDesktop {
+    pub fn new(socket: Socket) -> Self {
+        Self { socket }
+    }
 
-pub fn listen_monitors(mut socket: Socket) -> mpsc::Receiver<Monitor> {
-    let reply = socket
-        .send(Request::EventStream)
-        .expect("niri should be running")
-        .expect("starting event stream should succeed");
-    assert!(
-        matches!(reply, Response::Handled),
-        "niri should handle request successfully"
-    );
+    pub fn focus_workspace(&mut self, id: WorkspaceId) {
+        let _ = self.socket.send(Request::Action(Action::FocusWorkspace {
+            reference: niri_ipc::WorkspaceReferenceArg::Id(id as u64),
+        }));
+    }
 
-    let read_event = socket.read_events();
-    let (mtx, mrx) = mpsc::channel();
-    tokio::task::spawn_blocking(move || run(read_event, mtx));
+    pub fn cycle_workspace(&mut self, forward: bool) {
+        let action = if forward {
+            Action::FocusWorkspaceUp {}
+        } else {
+            Action::FocusWorkspaceDown {}
+        };
+        let _ = self.socket.send(Request::Action(action));
+    }
 
-    mrx
+    pub fn subscription(&self) -> iced::Subscription<DesktopEvent> {
+        #[derive(Hash)]
+        struct NiriEvents;
+
+        iced::Subscription::run_with_id(
+            NiriEvents,
+            once(new_event_stream()).flat_map(|socket| {
+                unfold(
+                    (socket, String::new(), EventStreamState::default()),
+                    |(mut socket, mut buf, mut state)| async {
+                        let event = loop {
+                            // Ignore errors.
+                            // In particular, ignore Event::WindowFocusTimestampChanged, which we
+                            // do not know how to deserialize since it hasn't been released yet.
+                            if let Some(event) = read_event(&mut buf, &mut socket).await {
+                                break event;
+                            };
+                        };
+                        state.apply(event);
+
+                        Some((
+                            DesktopEvent::WorkspacesChanged(make_workspace_infos(&state)),
+                            (socket, buf, state),
+                        ))
+                    },
+                )
+            }),
+        )
+    }
 }
 
-fn run(
-    mut read_event: impl FnMut() -> std::io::Result<niri_ipc::Event>,
-    mtx: mpsc::Sender<Monitor>,
-) {
-    let mut workspaces = HashMap::<u64, Workspace>::new();
-    let mut senders = HashMap::<String, watch::Sender<MonitorInfo>>::new();
-    let mut overview_open = false;
+async fn new_event_stream() -> BufReader<UnixStream> {
+    let socket = UnixSocket::new_stream()
+        .unwrap()
+        .connect(std::env::var(niri_ipc::socket::SOCKET_PATH_ENV).unwrap())
+        .await
+        .unwrap();
+    let mut socket = BufReader::new(socket);
 
-    while let Ok(event) = read_event() {
-        use niri_ipc::Event::*;
-        match event {
-            WorkspacesChanged {
-                workspaces: new_workspaces,
-            } => {
-                let new_workspaces: HashMap<u64, Workspace> =
-                    new_workspaces.into_iter().map(|w| (w.id, w)).collect();
+    let mut buf = serde_json::to_string(&Request::EventStream).unwrap();
+    buf.push('\n');
+    socket.write_all(buf.as_bytes()).await.unwrap();
+    buf.clear();
 
-                let outputs = new_workspaces
-                    .values()
-                    .filter_map(|w| w.output.clone())
-                    .collect::<HashSet<_>>();
+    socket.read_line(&mut buf).await.unwrap();
+    let reply: niri_ipc::Reply = serde_json::from_str(&buf).unwrap();
+    assert!(matches!(reply, Ok(Response::Handled)));
 
-                for output in outputs {
-                    let mut workspaces_on_output = new_workspaces
-                        .values()
-                        .filter(|w| w.output.as_ref().map(|w| *w == output).unwrap_or_default())
-                        .collect::<Vec<_>>();
-                    workspaces_on_output.sort_by_key(|w| w.idx);
+    socket
+}
 
-                    let workspaces_infos = workspaces_on_output
-                        .iter()
-                        .map(|w| WorkspaceInfo {
-                            id: w.id as i32,
-                            has_windows: w.active_window_id.is_some(),
-                        })
-                        .collect::<Vec<_>>();
+async fn read_event(
+    buf: &mut String,
+    socket: &mut BufReader<UnixStream>,
+) -> Option<niri_ipc::Event> {
+    buf.clear();
+    socket.read_line(buf).await.ok()?;
+    serde_json::from_str(buf).ok()
+}
 
-                    let active_workspace = workspaces_on_output.iter().find(|w| w.is_active);
-                    let show_transparent = overview_open
-                        || !active_workspace
-                            .map(|w| w.active_window_id.is_some())
-                            .unwrap_or_default();
+fn make_workspace_infos(state: &EventStreamState) -> WorkspaceInfos {
+    let nonempty_workspace_ids = state
+        .windows
+        .windows
+        .values()
+        .filter_map(|w| w.workspace_id)
+        .collect::<HashSet<_>>();
 
-                    let monitor_info = MonitorInfo {
-                        workspaces: workspaces_infos,
-                        active_workspace_id: active_workspace.map(|w| w.id).unwrap_or_default()
-                            as i32,
-                        show_transparent,
-                    };
-
-                    if let Some(tx) = senders.get_mut(&output) {
-                        tx.send_replace(monitor_info);
-                    } else {
-                        let (tx, mut rx) = watch::channel(monitor_info);
-                        rx.mark_changed();
-                        let _ = mtx.send(Monitor::new(0, output.clone(), rx));
-                        senders.insert(output.clone(), tx);
-                    }
-                }
-
-                workspaces = new_workspaces;
+    state
+        .workspaces
+        .workspaces
+        .values()
+        .map(|w| {
+            let has_windows = nonempty_workspace_ids.contains(&w.id);
+            WorkspaceInfo {
+                output: w.output.clone(),
+                id: w.id as WorkspaceId,
+                idx: w.idx as i32,
+                is_active: w.is_active,
+                has_windows,
+                transparent_bar: !has_windows || state.overview.is_open,
             }
-            WorkspaceActivated { id, focused: _ } => {
-                if let Some(workspace) = workspaces.get(&id)
-                    && let Some(output) = &workspace.output
-                    && let Some(tx) = senders.get_mut(output)
-                {
-                    let idx = workspace.idx as usize - 1;
-                    tx.send_if_modified(|monitor_info| {
-                        let show_transparent = overview_open
-                            || !monitor_info
-                                .workspaces
-                                .get(idx)
-                                .map(|w| w.has_windows)
-                                .unwrap_or_default();
-                        let modified = (
-                            monitor_info.show_transparent,
-                            monitor_info.active_workspace_id,
-                        ) != (show_transparent, id as i32);
-                        monitor_info.show_transparent = show_transparent;
-                        monitor_info.active_workspace_id = id as i32;
-                        modified
-                    });
-                }
-            }
-            WorkspaceActiveWindowChanged {
-                workspace_id,
-                active_window_id,
-            } => {
-                if let Some(workspace) = workspaces.get(&workspace_id)
-                    && let Some(output) = &workspace.output
-                    && let Some(tx) = senders.get_mut(output)
-                {
-                    let has_windows = active_window_id.is_some();
-                    tx.send_if_modified(|monitor_info| {
-                        // TODO: better way to write this?
-                        let active_idx = monitor_info
-                            .workspaces
-                            .iter()
-                            .position(|w| w.id == monitor_info.active_workspace_id);
-                        if let Some(active_workspace_info) =
-                            active_idx.and_then(|idx| monitor_info.workspaces.get_mut(idx))
-                        {
-                            let show_transparent =
-                                overview_open || !active_workspace_info.has_windows;
-                            let modified = (
-                                monitor_info.show_transparent,
-                                active_workspace_info.has_windows,
-                            ) != (show_transparent, has_windows);
-                            monitor_info.show_transparent = show_transparent;
-                            active_workspace_info.has_windows = has_windows;
-                            modified
-                        } else {
-                            false
-                        }
-                    });
-                }
-            }
-            OverviewOpenedOrClosed { is_open } => {
-                overview_open = is_open;
-                for tx in senders.values_mut() {
-                    tx.send_if_modified(|monitor_info| {
-                        let show_transparent = overview_open
-                            || !monitor_info
-                                .workspaces
-                                .iter()
-                                .find(|w| w.id == monitor_info.active_workspace_id)
-                                .map(|w| w.has_windows)
-                                .unwrap_or_default();
-                        let modified = monitor_info.show_transparent != show_transparent;
-                        monitor_info.show_transparent = show_transparent;
-                        modified
-                    });
-                }
-            }
-            _ => {}
-        }
-    }
+        })
+        .collect()
 }
