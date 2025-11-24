@@ -49,15 +49,27 @@ impl NiriDesktop {
                 unfold(
                     (socket, String::new(), EventStreamState::default()),
                     |(mut socket, mut buf, mut state)| async {
-                        let event = loop {
+                        loop {
                             // Ignore errors.
                             // In particular, ignore Event::WindowFocusTimestampChanged, which we
                             // do not know how to deserialize since it hasn't been released yet.
                             if let Some(event) = read_event(&mut buf, &mut socket).await {
-                                break event;
+                                state.apply(event.clone());
+                                use niri_ipc::Event::*;
+
+                                // Only emit messages on relevant events.
+                                if let WorkspacesChanged { .. }
+                                | WorkspaceActivated { .. }
+                                | WorkspaceActiveWindowChanged { .. }
+                                | WindowOpenedOrChanged { .. }
+                                | WindowFocusChanged { .. }
+                                | WindowClosed { .. }
+                                | OverviewOpenedOrClosed { .. } = event
+                                {
+                                    break;
+                                }
                             };
-                        };
-                        state.apply(event);
+                        }
 
                         Some((
                             DesktopEvent::WorkspacesChanged(make_workspace_infos(&state)),
