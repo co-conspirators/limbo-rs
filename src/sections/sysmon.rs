@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{collections::HashSet, sync::LazyLock, time::Duration};
 
 use iced::{
     Color,
@@ -46,16 +46,23 @@ impl Sysmon {
             (self.system.total_memory() - self.system.available_memory()) as f64 / 1_000_000_000.0;
 
         let temperatures = self.components.list();
+        static LABELS: LazyLock<HashSet<&str>> = LazyLock::new(|| {
+            HashSet::from([
+                // AMD Zen CPUs
+                // Tctl = Control Temperature
+                // Tccd1 = Core Complex Die 1
+                // Tccd2 = Core Complex Die 2
+                "k10temp Tctl",
+                // Intel CPUs
+                "coretemp Package id 0",
+            ])
+        });
         let cpu_temp = temperatures
             .iter()
-            // NOTE: Only works for AMD Zen CPUs which is fine for my use case
-            // Tctl = Control Temperature
-            // Tccd1 = Core Complex Die 1
-            // Tccd2 = Core Complex Die 2
-            .find(|t| t.label() == "k10temp Tctl")
+            .find(|t| LABELS.contains(t.label()))
             .and_then(|t| t.temperature());
         if cpu_temp.is_none() {
-            println!("CPU temperature not found. Are you using an AMD Zen CPU?");
+            println!("CPU temperature not found.");
         }
         let cpu_temp = cpu_temp.unwrap_or_default();
 
