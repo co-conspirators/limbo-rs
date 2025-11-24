@@ -45,61 +45,65 @@ impl NiriDesktop {
 
         iced::Subscription::run_with_id(
             NiriEvents,
-            once(new_event_stream()).flat_map(|socket| {
-                unfold(
-                    (socket, String::new(), EventStreamState::default()),
-                    |(mut socket, mut buf, mut state)| async {
-                        loop {
-                            // Ignore errors.
-                            // In particular, ignore Event::WindowFocusTimestampChanged, which we
-                            // do not know how to deserialize since it hasn't been released yet.
-                            if let Some(event) = read_event(&mut buf, &mut socket).await {
-                                state.apply(event.clone());
-                                use niri_ipc::Event::*;
+            once(new_event_stream())
+                .filter_map(|e| async { e })
+                .flat_map(|socket| {
+                    unfold(
+                        (socket, String::new(), EventStreamState::default()),
+                        |(mut socket, mut buf, mut state)| async {
+                            loop {
+                                // Ignore errors.
+                                // In particular, ignore Event::WindowFocusTimestampChanged, which we
+                                // do not know how to deserialize since it hasn't been released yet.
+                                if let Some(event) = read_event(&mut buf, &mut socket).await {
+                                    state.apply(event.clone());
+                                    use niri_ipc::Event::*;
 
-                                // Only emit messages on relevant events.
-                                if let WorkspacesChanged { .. }
-                                | WorkspaceActivated { .. }
-                                | WorkspaceActiveWindowChanged { .. }
-                                | WindowOpenedOrChanged { .. }
-                                | WindowFocusChanged { .. }
-                                | WindowClosed { .. }
-                                | OverviewOpenedOrClosed { .. } = event
-                                {
-                                    break;
-                                }
-                            };
-                        }
+                                    // Only emit messages on relevant events.
+                                    if let WorkspacesChanged { .. }
+                                    | WorkspaceActivated { .. }
+                                    | WorkspaceActiveWindowChanged { .. }
+                                    | WindowOpenedOrChanged { .. }
+                                    | WindowFocusChanged { .. }
+                                    | WindowClosed { .. }
+                                    | OverviewOpenedOrClosed { .. } = event
+                                    {
+                                        break;
+                                    }
+                                };
+                            }
 
-                        Some((
-                            DesktopEvent::WorkspacesChanged(make_workspace_infos(&state)),
-                            (socket, buf, state),
-                        ))
-                    },
-                )
-            }),
+                            Some((
+                                DesktopEvent::WorkspacesChanged(make_workspace_infos(&state)),
+                                (socket, buf, state),
+                            ))
+                        },
+                    )
+                }),
         )
     }
 }
 
-async fn new_event_stream() -> BufReader<UnixStream> {
+async fn new_event_stream() -> Option<BufReader<UnixStream>> {
     let socket = UnixSocket::new_stream()
-        .unwrap()
-        .connect(std::env::var(niri_ipc::socket::SOCKET_PATH_ENV).unwrap())
+        .ok()?
+        .connect(std::env::var(niri_ipc::socket::SOCKET_PATH_ENV).ok()?)
         .await
-        .unwrap();
+        .ok()?;
     let mut socket = BufReader::new(socket);
 
-    let mut buf = serde_json::to_string(&Request::EventStream).unwrap();
+    let mut buf = serde_json::to_string(&Request::EventStream).ok()?;
     buf.push('\n');
-    socket.write_all(buf.as_bytes()).await.unwrap();
+    socket.write_all(buf.as_bytes()).await.ok()?;
     buf.clear();
 
-    socket.read_line(&mut buf).await.unwrap();
-    let reply: niri_ipc::Reply = serde_json::from_str(&buf).unwrap();
-    assert!(matches!(reply, Ok(Response::Handled)));
-
-    socket
+    socket.read_line(&mut buf).await.ok()?;
+    let reply: niri_ipc::Reply = serde_json::from_str(&buf).ok()?;
+    if let Ok(Response::Handled) = reply {
+        Some(socket)
+    } else {
+        None
+    }
 }
 
 async fn read_event(
