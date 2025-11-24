@@ -70,11 +70,11 @@ struct Bar {
     id: window::Id,
     wl_output: WlOutput,
 
-    workspaces: Workspaces,
+    workspaces: Option<Workspaces>,
 }
 
 struct Limbo {
-    desktop: Desktop,
+    desktop: Option<Desktop>,
     workspace_infos: WorkspaceInfos,
 
     output_infos: HashMap<WlOutput, OutputInfo>,
@@ -119,12 +119,16 @@ impl Limbo {
                     None
                 }
             }),
-            self.desktop.subscription().map(Message::DesktopEvent),
             self.clock.subscription().map(Message::Clock),
             self.sysmon.subscription().map(Message::Sysmon),
         ];
+        if let Some(desktop) = &self.desktop {
+            subscriptions.push(desktop.subscription().map(Message::DesktopEvent));
+        }
         for bar in self.bars.iter() {
-            if let Some(workspace_subscription) = bar.workspaces.subscription() {
+            if let Some(workspaces) = &bar.workspaces
+                && let Some(workspace_subscription) = workspaces.subscription()
+            {
                 subscriptions.push(
                     workspace_subscription
                         .with(bar.id)
@@ -146,10 +150,14 @@ impl Limbo {
                     .map(|bar| self.workspace_infos_for_output(&bar.wl_output).collect())
                     .collect::<Vec<_>>();
                 for (bar, workspace_infos) in self.bars.iter_mut().zip(workspace_infoss) {
-                    bar.workspaces.update(
-                        WorkspacesMessage::WorkspacesChanged(workspace_infos),
-                        &mut self.desktop,
-                    );
+                    if let Some(workspaces) = &mut bar.workspaces
+                        && let Some(desktop) = self.desktop.as_mut()
+                    {
+                        workspaces.update(
+                            WorkspacesMessage::WorkspacesChanged(workspace_infos),
+                            desktop,
+                        );
+                    }
                 }
                 Task::none()
             }
@@ -181,9 +189,12 @@ impl Limbo {
                 self.clock.update(msg);
                 Task::none()
             }
-            Message::Workspaces(bar_id, msg) => {
-                if let Some(bar) = self.bars.iter_mut().find(|b| b.id == bar_id) {
-                    bar.workspaces.update(msg, &mut self.desktop);
+            Message::Workspaces(bar_id, message) => {
+                if let Some(bar) = self.bars.iter_mut().find(|b| b.id == bar_id)
+                    && let Some(workspaces) = &mut bar.workspaces
+                    && let Some(desktop) = self.desktop.as_mut()
+                {
+                    workspaces.update(message, desktop);
                 }
                 Task::none()
             }
@@ -211,6 +222,15 @@ impl Limbo {
             false
         };
 
+        let mut center = Vec::new();
+        if let Some(workspaces) = &bar.workspaces {
+            center.push(
+                workspaces
+                    .view()
+                    .map(|msg| Message::Workspaces(bar.id, msg)),
+            )
+        }
+
         container(
             row![
                 // Left
@@ -225,15 +245,7 @@ impl Limbo {
                     .spacing(12)
                 ),
                 // Center
-                side(
-                    Alignment::Center,
-                    row![
-                        bar.workspaces
-                            .view()
-                            .map(|msg| Message::Workspaces(bar.id, msg))
-                    ]
-                    .spacing(12)
-                ),
+                side(Alignment::Center, row(center).spacing(12)),
                 // Right
                 side(
                     Alignment::End,
@@ -304,7 +316,11 @@ impl Limbo {
         self.bars.push(Bar {
             id,
             wl_output: wl_output.clone(),
-            workspaces: Workspaces::new(workspace_infos),
+            workspaces: if self.desktop.is_some() {
+                Some(Workspaces::new(workspace_infos))
+            } else {
+                None
+            },
         });
 
         get_layer_surface(SctkLayerSurfaceSettings {

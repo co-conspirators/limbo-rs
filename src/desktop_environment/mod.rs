@@ -3,9 +3,6 @@ mod hyprland_desktop;
 #[cfg(feature = "niri")]
 mod niri_desktop;
 
-#[cfg(not(any(feature = "hyprland", feature = "niri")))]
-compile_error!("At least one of \"hyprland\" or \"niri\" must be enabled.");
-
 pub type WorkspaceId = i64;
 
 #[derive(Debug, Clone)]
@@ -32,21 +29,21 @@ pub enum Desktop {
     Niri(niri_desktop::NiriDesktop),
 }
 impl Desktop {
-    pub fn new() -> Self {
+    pub fn new() -> Option<Self> {
         #[cfg(feature = "hyprland")]
         {
             use hyprland::shared::HyprData;
             if hyprland::data::Version::get().is_ok() {
-                return Self::Hyprland(hyprland_desktop::HyprlandDesktop::new());
+                return Some(Self::Hyprland(hyprland_desktop::HyprlandDesktop::new()));
             }
         }
 
         #[cfg(feature = "niri")]
         if let Ok(socket) = niri_ipc::socket::Socket::connect() {
-            return Self::Niri(niri_desktop::NiriDesktop::new(socket));
+            return Some(Self::Niri(niri_desktop::NiriDesktop::new(socket)));
         }
 
-        panic!("no compatible desktop environment detected");
+        None
     }
 
     pub fn focus_workspace(&mut self, id: WorkspaceId) {
@@ -55,6 +52,8 @@ impl Desktop {
             Desktop::Hyprland(hyprland_desktop) => hyprland_desktop.focus_workspace(id),
             #[cfg(feature = "niri")]
             Desktop::Niri(niri_desktop) => niri_desktop.focus_workspace(id),
+            #[allow(unused)]
+            _ => unreachable!(),
         }
     }
 
@@ -64,6 +63,8 @@ impl Desktop {
             Desktop::Hyprland(hyprland_desktop) => hyprland_desktop.cycle_workspace(forward),
             #[cfg(feature = "niri")]
             Desktop::Niri(niri_desktop) => niri_desktop.cycle_workspace(forward),
+            #[allow(unused)]
+            _ => unreachable!(),
         }
     }
 
@@ -73,6 +74,8 @@ impl Desktop {
             Desktop::Hyprland(hyprland_desktop) => hyprland_desktop.subscription(),
             #[cfg(feature = "niri")]
             Desktop::Niri(niri_desktop) => niri_desktop.subscription(),
+            #[allow(unused)]
+            _ => unreachable!(),
         }
     }
 }
