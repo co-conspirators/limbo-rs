@@ -116,26 +116,30 @@ async fn read_event(
 }
 
 fn make_workspace_infos(state: &EventStreamState) -> WorkspaceInfos {
-    let nonempty_workspace_ids = state
-        .windows
-        .windows
-        .values()
-        .filter_map(|w| w.workspace_id)
-        .collect::<HashSet<_>>();
-
     state
         .workspaces
         .workspaces
         .values()
         .map(|w| {
-            let has_windows = nonempty_workspace_ids.contains(&w.id);
+            let has_windows = state
+                .windows
+                .windows
+                .values()
+                .any(|win| win.workspace_id == Some(w.id));
             WorkspaceInfo {
                 output: w.output.clone(),
                 id: w.id as WorkspaceId,
                 idx: w.idx as i32,
                 is_active: w.is_active,
                 has_windows,
-                transparent_bar: !has_windows || state.overview.is_open,
+                transparent_bar: !has_windows
+                    || state.overview.is_open
+                    || state
+                        .windows
+                        .windows
+                        .values()
+                        .filter(|win| win.workspace_id == Some(w.id))
+                        .all(|win| win.is_floating),
             }
         })
         .collect()
