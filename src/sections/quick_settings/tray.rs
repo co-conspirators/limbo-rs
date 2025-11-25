@@ -2,10 +2,8 @@
 
 use iced::widget::Row;
 
-use crate::{
-    components::{section, system_icon},
-    tray::TrayItem,
-};
+use crate::components::{section, system_icon};
+use crate::tray::TrayItem;
 
 #[derive(Debug)]
 pub struct TrayView {

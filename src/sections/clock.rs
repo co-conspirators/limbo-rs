@@ -75,10 +75,8 @@ impl Clock {
 /// Returns an [`iced::Subscription`] that produces a message at every integer second
 /// or minute transition, such that the clock is updated exactly on time.
 pub mod time {
-    use iced::{
-        Subscription,
-        advanced::subscription::{self, Hasher},
-    };
+    use iced::Subscription;
+    use iced::advanced::subscription::{self, Hasher};
 
     pub fn every_second() -> Subscription<()> {
         subscription::from_recipe(Timer { seconds: true })

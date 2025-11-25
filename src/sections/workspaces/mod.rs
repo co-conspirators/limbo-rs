@@ -1,15 +1,11 @@
 use std::time::Duration;
 
-use iced::{
-    Border, Color,
-    advanced::mouse,
-    widget::{Row, container, mouse_area, text},
-};
+use iced::advanced::mouse;
+use iced::widget::{Row, container, mouse_area, text};
+use iced::{Border, Color};
 
-use crate::{
-    components::section,
-    desktop_environment::{WorkspaceId, WorkspaceInfo},
-};
+use crate::components::section;
+use crate::desktop_environment::{WorkspaceId, WorkspaceInfo};
 
 mod state;
 use state::WorkspaceState;

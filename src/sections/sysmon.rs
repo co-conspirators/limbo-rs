@@ -1,9 +1,9 @@
-use std::{collections::HashSet, sync::LazyLock, time::Duration};
+use std::collections::HashSet;
+use std::sync::LazyLock;
+use std::time::Duration;
 
-use iced::{
-    Color,
-    widget::row,
-};
+use iced::Color;
+use iced::widget::row;
 use sysinfo::{Components, CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 
 use crate::components::{section, text_with_icon};

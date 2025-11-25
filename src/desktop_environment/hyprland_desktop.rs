@@ -1,12 +1,11 @@
-use hyprland::{
-    data::{Clients, Monitors, WorkspaceRules, Workspaces},
-    dispatch,
-    dispatch::WorkspaceIdentifierWithSpecial,
-    error::HyprError,
-    event_listener::{Event as HyprEvent, EventStream},
-    shared::HyprData,
-};
-use iced::futures::{StreamExt, stream::once};
+use hyprland::data::{Clients, Monitors, WorkspaceRules, Workspaces};
+use hyprland::dispatch;
+use hyprland::dispatch::WorkspaceIdentifierWithSpecial;
+use hyprland::error::HyprError;
+use hyprland::event_listener::{Event as HyprEvent, EventStream};
+use hyprland::shared::HyprData;
+use iced::futures::StreamExt;
+use iced::futures::stream::once;
 
 use super::{DesktopEvent, WorkspaceId, WorkspaceInfo};
 

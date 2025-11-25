@@ -1,16 +1,10 @@
-use iced::futures::{
-    StreamExt,
-    stream::{once, unfold},
-};
-use niri_ipc::{
-    Action, Request, Response,
-    socket::Socket,
-    state::{EventStreamState, EventStreamStatePart},
-};
-use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
-    net::{UnixSocket, UnixStream},
-};
+use iced::futures::StreamExt;
+use iced::futures::stream::{once, unfold};
+use niri_ipc::socket::Socket;
+use niri_ipc::state::{EventStreamState, EventStreamStatePart};
+use niri_ipc::{Action, Request, Response};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::net::{UnixSocket, UnixStream};
 
 use super::{DesktopEvent, WorkspaceId, WorkspaceInfo};
 

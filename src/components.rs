@@ -1,17 +1,10 @@
-use std::{
-    collections::HashMap,
-    path::PathBuf,
-    sync::{LazyLock, Mutex},
-};
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::{LazyLock, Mutex};
 
-use iced::{
-    Alignment, Border, Color, Element, Length, Theme,
-    widget::{
-        Container, container, image, row, svg,
-        svg::{Handle, Svg},
-        text,
-    },
-};
+use iced::widget::svg::{Handle, Svg};
+use iced::widget::{Container, container, image, row, svg, text};
+use iced::{Alignment, Border, Color, Element, Length, Theme};
 
 use crate::icons::{Icons, IconsFilled};
 

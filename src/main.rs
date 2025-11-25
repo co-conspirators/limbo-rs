@@ -1,25 +1,20 @@
-use iced::{
-    Color, Element, Settings, Task, Theme,
-    daemon::{Appearance, DefaultStyle},
-    event::wayland::{Event as WaylandEvent, LayerEvent, OutputEvent},
-    platform_specific::shell::commands::layer_surface::{destroy_layer_surface, get_layer_surface},
-    runtime::platform_specific::wayland::layer_surface::{
-        IcedMargin, IcedOutput, SctkLayerSurfaceSettings,
-    },
-    theme::Palette,
-    window,
+use iced::daemon::{Appearance, DefaultStyle};
+use iced::event::wayland::{Event as WaylandEvent, LayerEvent, OutputEvent};
+use iced::platform_specific::shell::commands::layer_surface::{
+    destroy_layer_surface, get_layer_surface,
 };
-use sctk::{
-    reexports::client::protocol::wl_output::WlOutput,
-    shell::wlr_layer::{Anchor, KeyboardInteractivity, Layer},
+use iced::runtime::platform_specific::wayland::layer_surface::{
+    IcedMargin, IcedOutput, SctkLayerSurfaceSettings,
 };
+use iced::theme::Palette;
+use iced::{Color, Element, Settings, Task, Theme, window};
+use sctk::reexports::client::protocol::wl_output::WlOutput;
+use sctk::shell::wlr_layer::{Anchor, KeyboardInteractivity, Layer};
 
-use crate::{
-    bar::BarMessage,
-    desktop_environment::{Desktop, DesktopEvent},
-    sections::*,
-    tray::Tray,
-};
+use crate::bar::BarMessage;
+use crate::desktop_environment::{Desktop, DesktopEvent};
+use crate::sections::*;
+use crate::tray::Tray;
 
 mod bar;
 mod components;

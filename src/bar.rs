@@ -1,17 +1,12 @@
-use iced::{
-    Alignment, Element, Length, Theme,
-    widget::{container, row},
-    window,
-};
+use iced::widget::{container, row};
+use iced::{Alignment, Element, Length, Theme, window};
 use sctk::reexports::client::protocol::wl_output::WlOutput;
 
-use crate::{
-    components::{icon, section, side},
-    desktop_environment::WorkspaceInfo,
-    sections::{
-        Clock, ClockMessage, Sysmon, SysmonMessage, TrayMessage, TrayView, Workspaces,
-        WorkspacesMessage,
-    },
+use crate::components::{icon, section, side};
+use crate::desktop_environment::WorkspaceInfo;
+use crate::sections::{
+    Clock, ClockMessage, Sysmon, SysmonMessage, TrayMessage, TrayView, Workspaces,
+    WorkspacesMessage,
 };
 
 #[derive(Debug, Clone)]
