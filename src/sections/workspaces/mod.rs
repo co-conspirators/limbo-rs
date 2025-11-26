@@ -42,12 +42,12 @@ impl Workspaces {
             .states
             .iter()
             .map(|w| {
-                let color = if w.info.has_windows || w.active {
+                let color = if w.info.has_windows || w.info.is_active {
                     Color::from_rgb8(137, 180, 250)
                 } else {
                     Color::from_rgb8(88, 91, 112)
                 };
-                let width = 5. + w.animation_progress * 6.;
+                let width = w.width();
 
                 mouse_area(
                     container(container(text("")).padding([5., width]).style(
@@ -64,7 +64,7 @@ impl Workspaces {
                     ))
                     .padding([8., 15. - width]),
                 )
-                .on_press(Message::FocusWorkspace(w.id))
+                .on_press(Message::FocusWorkspace(w.info.id))
                 .on_scroll(|delta| {
                     let y = match delta {
                         mouse::ScrollDelta::Pixels { y, .. } => y,
