@@ -1,6 +1,6 @@
+use iced::Border;
 use iced::advanced::mouse;
 use iced::widget::{Row, container, mouse_area, text};
-use iced::{Border, Color};
 
 use crate::GlobalState;
 use crate::components::section;
@@ -42,11 +42,7 @@ impl Workspaces {
             .states
             .iter()
             .map(|w| {
-                let color = if w.info.has_windows || w.info.is_active {
-                    Color::from_rgb8(137, 180, 250)
-                } else {
-                    Color::from_rgb8(88, 91, 112)
-                };
+                let color = w.color();
                 let width = w.width();
 
                 mouse_area(
