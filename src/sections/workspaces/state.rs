@@ -33,7 +33,7 @@ impl WorkspaceState {
         }
     }
 
-    pub fn needs_update(&self) -> bool {
+    pub fn animation_running(&self) -> bool {
         self.active && self.animation_progress < 1.0
             || !self.active && self.animation_progress > 0.0
     }

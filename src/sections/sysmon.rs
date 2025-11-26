@@ -58,7 +58,7 @@ impl Sysmon {
         .into()
     }
 
-    pub fn subscription(&self) -> iced::Subscription<Message> {
+    pub fn subscription() -> iced::Subscription<Message> {
         let init = iced::futures::stream::once(async {
             // run these inside the stream with `once` to avoid initializing on each call to `subscription`
             (

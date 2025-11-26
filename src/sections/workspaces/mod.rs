@@ -84,11 +84,8 @@ impl Workspaces {
             .into()
     }
 
-    pub fn subscription(&self) -> Option<iced::Subscription<Message>> {
-        self.states
-            .iter()
-            .any(|w| w.needs_update())
-            .then(|| iced::time::every(Duration::from_millis(25)).map(|_| Message::AnimationTick))
+    pub fn animation_running(&self) -> bool {
+        self.states.iter().any(|w| w.animation_running())
     }
 }
 
@@ -99,7 +96,7 @@ fn update_states(
 ) -> Vec<WorkspaceState> {
     workspace_infos
         .iter()
-        .filter(|info| info.output.as_ref() == Some(&output_name))
+        .filter(|info| info.output.as_ref() == Some(output_name))
         .map(|info| WorkspaceState::from_existing(old_states, info.clone()))
         .collect()
 }

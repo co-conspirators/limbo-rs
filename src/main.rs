@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use iced::{
     Color, Element, Settings, Task, Theme,
     daemon::{Appearance, DefaultStyle},
@@ -17,7 +19,7 @@ use sctk::{
 use crate::{
     desktop_environment::{Desktop, WorkspaceInfo},
     message::Message,
-    sections::SysInfo,
+    sections::{SysInfo, Sysmon},
     tray::{Tray, TrayItem},
 };
 
@@ -106,9 +108,16 @@ impl Limbo {
                     None
                 }
             }),
+            Sysmon::subscription(),
             self.tray.subscription(),
             self.desktop.subscription(),
         ];
+
+        if self.bars.iter().any(|bar| bar.animation_running()) {
+            subscriptions
+                .push(iced::time::every(Duration::from_millis(25)).map(|_| Message::AnimationTick));
+        }
+
         subscriptions.extend(self.bars.iter().map(|bar| bar.subscription()));
 
         iced::Subscription::batch(subscriptions)

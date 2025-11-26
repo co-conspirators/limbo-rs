@@ -91,12 +91,12 @@ impl Bar {
         .into()
     }
 
+    pub fn animation_running(&self) -> bool {
+        self.workspaces.animation_running()
+    }
+
     pub fn subscription(&self) -> iced::Subscription<Message> {
-        let mut subscriptions = vec![self.clock.subscription(), self.sysmon.subscription()];
-        if let Some(subscription) = self.workspaces.subscription() {
-            subscriptions.push(subscription);
-        }
-        iced::Subscription::batch(subscriptions)
+        self.clock.subscription()
     }
 }
 
