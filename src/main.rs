@@ -10,6 +10,7 @@ use crate::message::Message;
 use crate::sections::{SysInfo, Sysmon};
 use crate::tray::{Tray, TrayItem};
 
+mod animation;
 mod bar;
 mod components;
 mod desktop_environment;
