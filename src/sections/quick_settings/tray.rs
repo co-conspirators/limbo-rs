@@ -4,6 +4,7 @@ use iced::widget::Row;
 
 use crate::{
     components::{section, system_icon},
+    message::Message,
     tray::TrayItem,
 };
 
@@ -12,25 +13,21 @@ pub struct TrayView {
     items: Vec<TrayItem>,
 }
 
-#[derive(Debug, Clone)]
-pub enum TrayMessage {
-    Items(Vec<TrayItem>),
-}
-
 impl TrayView {
     pub fn new() -> Self {
         Self { items: vec![] }
     }
 
-    pub fn update(&mut self, message: TrayMessage) {
+    pub fn update(&mut self, message: &Message) {
         match message {
-            TrayMessage::Items(items) => {
-                self.items = items;
+            Message::TrayItems(items) => {
+                self.items = items.clone();
             }
+            _ => {}
         }
     }
 
-    pub fn view(&self) -> iced::Element<'_, TrayMessage> {
+    pub fn view(&self) -> iced::Element<'_, Message> {
         let icons = self
             .items
             .iter()

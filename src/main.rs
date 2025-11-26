@@ -14,17 +14,13 @@ use sctk::{
     shell::wlr_layer::{Anchor, KeyboardInteractivity, Layer},
 };
 
-use crate::{
-    bar::BarMessage,
-    desktop_environment::{Desktop, DesktopEvent},
-    sections::*,
-    tray::Tray,
-};
+use crate::{desktop_environment::Desktop, message::Message, tray::Tray};
 
 mod bar;
 mod components;
 mod desktop_environment;
 mod icons;
+mod message;
 mod sections;
 mod tray;
 
@@ -68,13 +64,6 @@ struct Limbo {
     tray: Tray,
 }
 
-#[derive(Debug, Clone)]
-pub enum Message {
-    Desktop(DesktopEvent),
-    Wayland(WaylandEvent),
-    Bar(Option<window::Id>, BarMessage),
-}
-
 impl Limbo {
     fn new() -> (Self, Task<Message>) {
         (
@@ -102,30 +91,20 @@ impl Limbo {
                     None
                 }
             }),
-            self.tray
-                .subscribe()
-                .map(|items| Message::Bar(None, BarMessage::Tray(TrayMessage::Items(items)))),
-            self.desktop.subscription().map(Message::Desktop),
+            self.tray.subscription(),
+            self.desktop.subscription(),
         ];
-        subscriptions.extend(self.bars.iter().map(|bar| {
-            bar.subscription()
-                .with(bar.id)
-                .map(|(id, bar)| Message::Bar(Some(id), bar))
-        }));
+        subscriptions.extend(self.bars.iter().map(|bar| bar.subscription()));
 
         iced::Subscription::batch(subscriptions)
     }
 
     fn update(&mut self, message: Message) -> Task<Message> {
+        for bar in self.bars.iter_mut() {
+            bar.update(&message);
+        }
+
         match message {
-            Message::Desktop(DesktopEvent::WorkspacesChanged(workspace_infos)) => {
-                self.bars.iter_mut().for_each(|bar| {
-                    bar.update(BarMessage::Workspaces(
-                        WorkspacesMessage::WorkspacesChanged(workspace_infos.clone()),
-                    ))
-                });
-                Task::none()
-            }
             Message::Wayland(evt) => match evt {
                 WaylandEvent::Output(OutputEvent::Created(output_info), wl_output) => {
                     if let Some(output_name) = output_info.and_then(|o| o.name) {
@@ -144,26 +123,15 @@ impl Limbo {
                 }
                 _ => Task::none(),
             },
-            Message::Bar(_, BarMessage::Workspaces(WorkspacesMessage::FocusWorkspace(id))) => {
+            Message::FocusWorkspace(id) => {
                 self.desktop.focus_workspace(id);
                 Task::none()
             }
-            Message::Bar(_, BarMessage::Workspaces(WorkspacesMessage::CycleWorkspace(forward))) => {
+            Message::CycleWorkspace { forward } => {
                 self.desktop.cycle_workspace(forward);
                 Task::none()
             }
-            Message::Bar(id, msg) => {
-                if let Some(id) = id {
-                    if let Some(bar) = self.bars.iter_mut().find(|b| b.id == id) {
-                        bar.update(msg.clone());
-                    }
-                } else {
-                    for bar in self.bars.iter_mut() {
-                        bar.update(msg.clone());
-                    }
-                }
-                Task::none()
-            }
+            _ => Task::none(),
         }
     }
 
@@ -174,7 +142,6 @@ impl Limbo {
             .find(|b| b.id == window_id)
             .expect("All windows are bars");
         bar.view()
-            .map(move |msg| Message::Bar(Some(window_id), msg))
     }
 
     fn theme(&self, _window_id: window::Id) -> Theme {

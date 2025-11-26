@@ -7,27 +7,16 @@ use sctk::reexports::client::protocol::wl_output::WlOutput;
 
 use crate::{
     components::{icon, section, side},
-    desktop_environment::WorkspaceInfo,
-    sections::{
-        Clock, ClockMessage, Sysmon, SysmonMessage, TrayMessage, TrayView, Workspaces,
-        WorkspacesMessage,
-    },
+    message::Message,
+    sections::{Clock, Sysmon, TrayView, Workspaces},
 };
-
-#[derive(Debug, Clone)]
-pub enum BarMessage {
-    Workspaces(WorkspacesMessage),
-    Clock(ClockMessage),
-    Sysmon(SysmonMessage),
-    Tray(TrayMessage),
-}
 
 pub struct Bar {
     /// window id of the bar's layer surface.
     pub id: window::Id,
     pub wl_output: WlOutput,
     output_name: String,
-    workspace_infos: Vec<WorkspaceInfo>,
+    transparent: bool,
 
     workspaces: Workspaces,
     clock: Clock,
@@ -41,7 +30,7 @@ impl Bar {
             id,
             wl_output,
             output_name,
-            workspace_infos: vec![],
+            transparent: false,
 
             workspaces: Workspaces::new(),
             clock: Clock::new(),
@@ -50,32 +39,21 @@ impl Bar {
         }
     }
 
-    pub fn update(&mut self, message: BarMessage) {
-        match message {
-            BarMessage::Workspaces(WorkspacesMessage::WorkspacesChanged(workspace_infos)) => {
-                self.workspace_infos = workspace_infos
-                    .iter()
-                    .filter(|w| w.output == Some(self.output_name.clone()))
-                    .cloned()
-                    .collect();
-                self.workspaces.update(WorkspacesMessage::WorkspacesChanged(
-                    self.workspace_infos.clone(),
-                ));
-            }
-            BarMessage::Workspaces(msg) => self.workspaces.update(msg),
-            BarMessage::Clock(msg) => self.clock.update(msg),
-            BarMessage::Sysmon(msg) => self.sysmon.update(msg),
-            BarMessage::Tray(msg) => self.tray_view.update(msg),
+    pub fn update(&mut self, message: &Message) {
+        self.workspaces.update(message);
+        self.clock.update(message, self.id);
+        self.sysmon.update(message);
+        self.tray_view.update(message);
+        if let Message::WorkspacesChanged(workspace_infos) = message {
+            self.transparent = workspace_infos
+                .iter()
+                .filter(|w| w.output.as_ref() == Some(&self.output_name))
+                .find(|w| w.is_active)
+                .is_some_and(|w| w.transparent_bar);
         };
     }
 
-    pub fn view(&self) -> Element<'_, BarMessage> {
-        let transparent = self
-            .workspace_infos
-            .iter()
-            .find(|w| w.is_active)
-            .is_some_and(|w| w.transparent_bar);
-
+    pub fn view(&self) -> Element<'_, Message> {
         container(
             row![
                 // Left
@@ -84,17 +62,14 @@ impl Bar {
                     row![section(icon("nix-snowflake-white", None))].spacing(12)
                 ),
                 // Center
-                side(
-                    Alignment::Center,
-                    row![self.workspaces.view().map(BarMessage::Workspaces)].spacing(12)
-                ),
+                side(Alignment::Center, row![self.workspaces.view()].spacing(12)),
                 // Right
                 side(
                     Alignment::End,
                     row![
-                        self.tray_view.view().map(BarMessage::Tray),
-                        self.sysmon.view().map(BarMessage::Sysmon),
-                        self.clock.view().map(BarMessage::Clock)
+                        self.tray_view.view(),
+                        self.sysmon.view(),
+                        self.clock.view(self.id)
                     ]
                     .spacing(12)
                 ),
@@ -104,7 +79,7 @@ impl Bar {
             .height(Length::Fill),
         )
         .style(move |theme: &Theme| {
-            if transparent {
+            if self.transparent {
                 iced::widget::container::transparent(theme)
             } else {
                 iced::widget::container::background(theme.palette().background)
@@ -113,13 +88,10 @@ impl Bar {
         .into()
     }
 
-    pub fn subscription(&self) -> iced::Subscription<BarMessage> {
-        let mut subscriptions = vec![
-            self.clock.subscription().map(BarMessage::Clock),
-            self.sysmon.subscription().map(BarMessage::Sysmon),
-        ];
+    pub fn subscription(&self) -> iced::Subscription<Message> {
+        let mut subscriptions = vec![self.clock.subscription(), self.sysmon.subscription()];
         if let Some(subscription) = self.workspaces.subscription() {
-            subscriptions.push(subscription.map(BarMessage::Workspaces));
+            subscriptions.push(subscription);
         }
         iced::Subscription::batch(subscriptions)
     }

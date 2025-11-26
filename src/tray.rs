@@ -3,6 +3,8 @@ use std::sync::Arc;
 use system_tray::{client::Client, item::StatusNotifierItem, menu::TrayMenu};
 use tokio::sync::{Mutex, watch};
 
+use crate::message::Message;
+
 #[derive(Debug, Clone)]
 pub struct TrayItem {
     pub item: StatusNotifierItem,
@@ -55,7 +57,7 @@ impl Tray {
         }
     }
 
-    pub fn subscribe(&self) -> iced::Subscription<Vec<TrayItem>> {
+    pub fn subscription(&self) -> iced::Subscription<Message> {
         iced::Subscription::run_with_id(
             "tray".to_string(),
             iced::futures::stream::unfold(self.rx.clone(), |rx| async move {
@@ -67,7 +69,7 @@ impl Tray {
                         None
                     }
                 };
-                value.map(|v| (v, rx))
+                value.map(|v| (Message::TrayItems(v), rx))
             }),
         )
     }

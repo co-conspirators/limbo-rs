@@ -3,7 +3,7 @@ mod quick_settings;
 mod sysmon;
 mod workspaces;
 
-pub use clock::{Clock, ClockMessage};
-pub use quick_settings::{TrayMessage, TrayView};
-pub use sysmon::{Sysmon, SysmonMessage};
-pub use workspaces::{Workspaces, WorkspacesMessage};
+pub use clock::Clock;
+pub use quick_settings::TrayView;
+pub use sysmon::{SysInfo, Sysmon};
+pub use workspaces::Workspaces;

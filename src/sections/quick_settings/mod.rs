@@ -1,2 +1,2 @@
 mod tray;
-pub use tray::{TrayMessage, TrayView};
+pub use tray::TrayView;

@@ -12,7 +12,8 @@ use tokio::{
     net::{UnixSocket, UnixStream},
 };
 
-use super::{DesktopEvent, WorkspaceId, WorkspaceInfo};
+use super::{WorkspaceId, WorkspaceInfo};
+use crate::message::Message;
 
 pub struct NiriDesktop {
     socket: Socket,
@@ -37,7 +38,7 @@ impl NiriDesktop {
         let _ = self.socket.send(Request::Action(action));
     }
 
-    pub fn subscription(&self) -> iced::Subscription<DesktopEvent> {
+    pub fn subscription(&self) -> iced::Subscription<Message> {
         #[derive(Hash)]
         struct NiriEvents;
 
@@ -72,7 +73,7 @@ impl NiriDesktop {
                             }
 
                             Some((
-                                DesktopEvent::WorkspacesChanged(make_workspace_infos(&state)),
+                                Message::WorkspacesChanged(make_workspace_infos(&state)),
                                 (socket, buf, state),
                             ))
                         },

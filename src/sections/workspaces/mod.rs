@@ -6,10 +6,7 @@ use iced::{
     widget::{Row, container, mouse_area, text},
 };
 
-use crate::{
-    components::section,
-    desktop_environment::{WorkspaceId, WorkspaceInfo},
-};
+use crate::{components::section, message::Message};
 
 mod state;
 use state::WorkspaceState;
@@ -18,37 +15,30 @@ pub struct Workspaces {
     states: Vec<WorkspaceState>,
 }
 
-#[derive(Debug, Clone)]
-pub enum WorkspacesMessage {
-    Tick,
-    WorkspacesChanged(Vec<WorkspaceInfo>),
-    FocusWorkspace(WorkspaceId),
-    CycleWorkspace(bool),
-}
-
 impl Workspaces {
     pub fn new() -> Self {
         Self { states: vec![] }
     }
 
-    pub fn update(&mut self, message: WorkspacesMessage) {
+    pub fn update(&mut self, message: &Message) {
         match message {
-            WorkspacesMessage::Tick => {
+            Message::AnimationTick => {
                 for w in &mut self.states {
                     w.update();
                 }
             }
-            WorkspacesMessage::WorkspacesChanged(workspace_infos) => {
+            Message::WorkspacesChanged(workspace_infos) => {
+                // TODO: filter by output name
                 self.states = workspace_infos
-                    .into_iter()
-                    .map(|info| WorkspaceState::from_existing(&self.states, info))
+                    .iter()
+                    .map(|info| WorkspaceState::from_existing(&self.states, info.clone()))
                     .collect();
             }
             _ => {}
         }
     }
 
-    pub fn view(&self) -> iced::Element<'_, WorkspacesMessage> {
+    pub fn view(&self) -> iced::Element<'_, Message> {
         let workspace_icons = self
             .states
             .iter()
@@ -75,18 +65,13 @@ impl Workspaces {
                     ))
                     .padding([8., 15. - width]),
                 )
-                .on_press(WorkspacesMessage::FocusWorkspace(w.id))
+                .on_press(Message::FocusWorkspace(w.id))
                 .on_scroll(|delta| {
                     let y = match delta {
                         mouse::ScrollDelta::Pixels { y, .. } => y,
                         mouse::ScrollDelta::Lines { y, .. } => y,
                     };
-                    match y {
-                        0.0 => WorkspacesMessage::Tick,
-                        ..0. => WorkspacesMessage::CycleWorkspace(true),
-                        0.0.. => WorkspacesMessage::CycleWorkspace(false),
-                        _ => WorkspacesMessage::Tick,
-                    }
+                    Message::CycleWorkspace { forward: y <= 0.0 }
                 })
                 .into()
             })
@@ -97,10 +82,10 @@ impl Workspaces {
             .into()
     }
 
-    pub fn subscription(&self) -> Option<iced::Subscription<WorkspacesMessage>> {
+    pub fn subscription(&self) -> Option<iced::Subscription<Message>> {
         self.states
             .iter()
             .any(|w| w.needs_update())
-            .then(|| iced::time::every(Duration::from_millis(25)).map(|_| WorkspacesMessage::Tick))
+            .then(|| iced::time::every(Duration::from_millis(25)).map(|_| Message::AnimationTick))
     }
 }

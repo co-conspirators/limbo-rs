@@ -1,22 +1,25 @@
 use std::{collections::HashSet, sync::LazyLock, time::Duration};
 
-use iced::{
-    Color,
-    widget::row,
-};
+use iced::{Color, widget::row};
 use sysinfo::{Components, CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 
-use crate::components::{section, text_with_icon};
+use crate::{
+    components::{section, text_with_icon},
+    message::Message,
+};
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct SysInfo {
+    cpu_usage: f32,
+    cpu_temp: f32,
+    ram_usage: f32,
+}
 
 #[derive(Debug)]
 pub struct Sysmon {
     system: System,
     components: Components,
-}
-
-#[derive(Debug, Clone)]
-pub enum SysmonMessage {
-    Tick,
+    info: SysInfo,
 }
 
 impl Sysmon {
@@ -27,20 +30,27 @@ impl Sysmon {
                 .with_memory(MemoryRefreshKind::nothing().with_ram()),
         );
         let components = Components::new_with_refreshed_list();
-        Self { system, components }
-    }
-
-    pub fn update(&mut self, message: SysmonMessage) {
-        match message {
-            SysmonMessage::Tick => {
-                self.system.refresh_cpu_usage();
-                self.system.refresh_memory();
-                self.components.refresh(true);
-            }
+        Self {
+            system,
+            components,
+            info: SysInfo::default(),
         }
     }
 
-    pub fn view(&self) -> iced::Element<'_, SysmonMessage> {
+    pub fn update(&mut self, message: &Message) {
+        match message {
+            Message::SysinfoUpdate(info) => {
+                self.system.refresh_cpu_usage();
+                self.system.refresh_memory();
+                self.components.refresh(true);
+                // TODO:
+                self.info = *info;
+            }
+            _ => {}
+        }
+    }
+
+    pub fn view(&self) -> iced::Element<'_, Message> {
         let cpu_usage = self.system.global_cpu_usage();
         let ram =
             (self.system.total_memory() - self.system.available_memory()) as f64 / 1_000_000_000.;
@@ -89,7 +99,7 @@ impl Sysmon {
         .into()
     }
 
-    pub fn subscription(&self) -> iced::Subscription<SysmonMessage> {
-        iced::time::every(Duration::from_secs(5)).map(|_| SysmonMessage::Tick)
+    pub fn subscription(&self) -> iced::Subscription<Message> {
+        iced::time::every(Duration::from_secs(5)).map(|_| Message::SysinfoUpdate(todo!()))
     }
 }

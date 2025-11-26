@@ -1,3 +1,5 @@
+use crate::message::Message;
+
 #[cfg(feature = "hyprland")]
 mod hyprland_desktop;
 #[cfg(feature = "niri")]
@@ -16,11 +18,6 @@ pub struct WorkspaceInfo {
     pub is_active: bool,
     pub has_windows: bool,
     pub transparent_bar: bool,
-}
-
-#[derive(Debug, Clone)]
-pub enum DesktopEvent {
-    WorkspacesChanged(Vec<WorkspaceInfo>),
 }
 
 pub enum Desktop {
@@ -65,7 +62,7 @@ impl Desktop {
         }
     }
 
-    pub fn subscription(&self) -> iced::Subscription<DesktopEvent> {
+    pub fn subscription(&self) -> iced::Subscription<Message> {
         match self {
             #[cfg(feature = "hyprland")]
             Desktop::Hyprland(hyprland_desktop) => hyprland_desktop.subscription(),

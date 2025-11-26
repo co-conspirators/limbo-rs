@@ -1,6 +1,12 @@
-use iced::widget::{mouse_area, row, text};
+use iced::{
+    widget::{mouse_area, row, text},
+    window,
+};
 
-use crate::components::{icon, section};
+use crate::{
+    components::{icon, section},
+    message::{BarMessage, Message},
+};
 
 #[derive(Debug, Clone, Copy)]
 enum TimeFormat {
@@ -14,12 +20,6 @@ pub struct Clock {
     expanded: bool,
 }
 
-#[derive(Debug, Clone)]
-pub enum ClockMessage {
-    Tick(jiff::Zoned),
-    ToggleExpanded,
-}
-
 impl Clock {
     pub fn new() -> Self {
         Self {
@@ -30,19 +30,23 @@ impl Clock {
         }
     }
 
-    pub fn update(&mut self, message: ClockMessage) {
+    pub fn update(&mut self, message: &Message, window_id: window::Id) {
         match message {
-            ClockMessage::Tick(local_time) => {
-                self.now = local_time;
+            Message::ClockTick {
+                local_time,
+                expanded,
+            } if *expanded == self.expanded => {
+                self.now = local_time.clone();
             }
-            ClockMessage::ToggleExpanded => {
+            Message::Bar(id, BarMessage::ClockToggleExpanded) if window_id == *id => {
                 self.expanded = !self.expanded;
                 self.now = jiff::Zoned::now();
             }
+            _ => {}
         }
     }
 
-    pub fn view(&self) -> iced::Element<'_, ClockMessage> {
+    pub fn view(&self, window_id: window::Id) -> iced::Element<'_, Message> {
         let format = match (self.format, self.expanded) {
             // Sun 5:14 PM
             (TimeFormat::_12h, false) => "%a %-I:%M %p",
@@ -58,17 +62,21 @@ impl Clock {
         mouse_area(section(
             row![icon("clock", None), text(formatted_date)].spacing(8),
         ))
-        .on_press(ClockMessage::ToggleExpanded)
+        .on_press(Message::Bar(window_id, BarMessage::ClockToggleExpanded))
         .into()
     }
 
-    pub fn subscription(&self) -> iced::Subscription<ClockMessage> {
+    pub fn subscription(&self) -> iced::Subscription<Message> {
         if self.expanded {
             time::every_second()
         } else {
             time::every_minute()
         }
-        .map(|_| ClockMessage::Tick(jiff::Zoned::now()))
+        .with(self.expanded)
+        .map(|(expanded, _)| Message::ClockTick {
+            local_time: jiff::Zoned::now(),
+            expanded,
+        })
     }
 }
 

@@ -8,7 +8,8 @@ use hyprland::{
 };
 use iced::futures::{StreamExt, stream::once};
 
-use super::{DesktopEvent, WorkspaceId, WorkspaceInfo};
+use super::{WorkspaceId, WorkspaceInfo};
+use crate::message::Message;
 
 pub struct HyprlandDesktop;
 
@@ -31,24 +32,20 @@ impl HyprlandDesktop {
         );
     }
 
-    pub fn subscription(&self) -> iced::Subscription<DesktopEvent> {
+    pub fn subscription(&self) -> iced::Subscription<Message> {
         #[derive(Hash)]
         struct HyprlandEvents;
 
         iced::Subscription::run_with_id(
             HyprlandEvents,
-            once(async {
-                make_workspace_infos()
-                    .await
-                    .map(DesktopEvent::WorkspacesChanged)
-            })
-            .filter_map(|e| async { e })
-            .chain(EventStream::new().filter_map(process_event)),
+            once(async { make_workspace_infos().await.map(Message::WorkspacesChanged) })
+                .filter_map(|e| async { e })
+                .chain(EventStream::new().filter_map(process_event)),
         )
     }
 }
 
-async fn process_event(event: Result<HyprEvent, HyprError>) -> Option<DesktopEvent> {
+async fn process_event(event: Result<HyprEvent, HyprError>) -> Option<Message> {
     let Ok(event) = event else {
         return None;
     };
@@ -56,9 +53,9 @@ async fn process_event(event: Result<HyprEvent, HyprError>) -> Option<DesktopEve
     match event {
         MonitorAdded(_) | MonitorRemoved(_) | WorkspaceChanged(_) | WorkspaceDeleted(_)
         | WorkspaceAdded(_) | WorkspaceMoved(_) | WindowOpened(_) | WindowClosed(_)
-        | WindowMoved(_) | FloatStateChanged(_) => make_workspace_infos()
-            .await
-            .map(DesktopEvent::WorkspacesChanged),
+        | WindowMoved(_) | FloatStateChanged(_) => {
+            make_workspace_infos().await.map(Message::WorkspacesChanged)
+        }
         _ => None,
     }
 }
