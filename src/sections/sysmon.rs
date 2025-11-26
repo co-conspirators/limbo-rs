@@ -1,13 +1,15 @@
-use std::{collections::HashSet, sync::LazyLock, time::Duration};
+use std::collections::HashSet;
+use std::sync::LazyLock;
+use std::time::Duration;
 
-use iced::{Color, futures::StreamExt, widget::row};
+use iced::Color;
+use iced::futures::StreamExt;
+use iced::widget::row;
 use sysinfo::{Components, CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 
-use crate::{
-    GlobalState,
-    components::{section, text_with_icon},
-    message::Message,
-};
+use crate::GlobalState;
+use crate::components::{section, text_with_icon};
+use crate::message::Message;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct SysInfo {

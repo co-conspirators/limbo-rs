@@ -1,17 +1,12 @@
-use iced::{
-    Alignment, Element, Length, Theme,
-    widget::{container, row},
-    window,
-};
+use iced::widget::{container, row};
+use iced::{Alignment, Element, Length, Theme, window};
 use sctk::reexports::client::protocol::wl_output::WlOutput;
 
-use crate::{
-    GlobalState,
-    components::{icon, section, side},
-    desktop_environment::WorkspaceInfo,
-    message::Message,
-    sections::{Clock, Sysmon, TrayView, Workspaces},
-};
+use crate::GlobalState;
+use crate::components::{icon, section, side};
+use crate::desktop_environment::WorkspaceInfo;
+use crate::message::Message;
+use crate::sections::{Clock, Sysmon, TrayView, Workspaces};
 
 pub struct Bar {
     /// window id of the bar's layer surface.

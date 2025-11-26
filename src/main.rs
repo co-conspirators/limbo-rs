@@ -1,27 +1,22 @@
 use std::time::Duration;
 
-use iced::{
-    Color, Element, Settings, Task, Theme,
-    daemon::{Appearance, DefaultStyle},
-    event::wayland::{Event as WaylandEvent, LayerEvent, OutputEvent},
-    platform_specific::shell::commands::layer_surface::{destroy_layer_surface, get_layer_surface},
-    runtime::platform_specific::wayland::layer_surface::{
-        IcedMargin, IcedOutput, SctkLayerSurfaceSettings,
-    },
-    theme::Palette,
-    window,
+use iced::daemon::{Appearance, DefaultStyle};
+use iced::event::wayland::{Event as WaylandEvent, LayerEvent, OutputEvent};
+use iced::platform_specific::shell::commands::layer_surface::{
+    destroy_layer_surface, get_layer_surface,
 };
-use sctk::{
-    reexports::client::protocol::wl_output::WlOutput,
-    shell::wlr_layer::{Anchor, KeyboardInteractivity, Layer},
+use iced::runtime::platform_specific::wayland::layer_surface::{
+    IcedMargin, IcedOutput, SctkLayerSurfaceSettings,
 };
+use iced::theme::Palette;
+use iced::{Color, Element, Settings, Task, Theme, window};
+use sctk::reexports::client::protocol::wl_output::WlOutput;
+use sctk::shell::wlr_layer::{Anchor, KeyboardInteractivity, Layer};
 
-use crate::{
-    desktop_environment::{Desktop, WorkspaceInfo},
-    message::Message,
-    sections::{SysInfo, Sysmon},
-    tray::{Tray, TrayItem},
-};
+use crate::desktop_environment::{Desktop, WorkspaceInfo};
+use crate::message::Message;
+use crate::sections::{SysInfo, Sysmon};
+use crate::tray::{Tray, TrayItem};
 
 mod bar;
 mod components;

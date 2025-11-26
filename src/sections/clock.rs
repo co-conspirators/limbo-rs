@@ -1,12 +1,8 @@
-use iced::{
-    widget::{mouse_area, row, text},
-    window,
-};
+use iced::widget::{mouse_area, row, text};
+use iced::window;
 
-use crate::{
-    components::{icon, section},
-    message::{BarMessage, Message},
-};
+use crate::components::{icon, section};
+use crate::message::{BarMessage, Message};
 
 #[derive(Debug, Clone, Copy)]
 enum TimeFormat {
@@ -83,10 +79,8 @@ impl Clock {
 /// Returns an [`iced::Subscription`] that produces a message at every integer second
 /// or minute transition, such that the clock is updated exactly on time.
 pub mod time {
-    use iced::{
-        Subscription,
-        advanced::subscription::{self, Hasher},
-    };
+    use iced::Subscription;
+    use iced::advanced::subscription::{self, Hasher};
 
     pub fn every_second() -> Subscription<()> {
         subscription::from_recipe(Timer { seconds: true })

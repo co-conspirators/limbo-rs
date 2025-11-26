@@ -1,9 +1,8 @@
-use iced::{event::wayland::Event as WaylandEvent, window};
+use iced::event::wayland::Event as WaylandEvent;
+use iced::window;
 
-use crate::{
-    desktop_environment::{WorkspaceId, WorkspaceInfo},
-    sections::SysInfo,
-};
+use crate::desktop_environment::{WorkspaceId, WorkspaceInfo};
+use crate::sections::SysInfo;
 
 #[derive(Debug, Clone)]
 pub enum BarMessage {

@@ -1,12 +1,11 @@
-use iced::{
-    Border, Color,
-    advanced::mouse,
-    widget::{Row, container, mouse_area, text},
-};
+use iced::advanced::mouse;
+use iced::widget::{Row, container, mouse_area, text};
+use iced::{Border, Color};
 
-use crate::{
-    GlobalState, components::section, desktop_environment::WorkspaceInfo, message::Message,
-};
+use crate::GlobalState;
+use crate::components::section;
+use crate::desktop_environment::WorkspaceInfo;
+use crate::message::Message;
 
 mod state;
 use state::WorkspaceState;

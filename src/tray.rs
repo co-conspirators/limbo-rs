@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use system_tray::{client::Client, item::StatusNotifierItem, menu::TrayMenu};
+use system_tray::client::Client;
+use system_tray::item::StatusNotifierItem;
+use system_tray::menu::TrayMenu;
 use tokio::sync::{Mutex, watch};
 
 use crate::message::Message;

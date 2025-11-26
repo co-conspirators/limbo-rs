@@ -2,12 +2,10 @@
 
 use iced::widget::Row;
 
-use crate::{
-    GlobalState,
-    components::{section, system_icon},
-    message::Message,
-    tray::TrayItem,
-};
+use crate::GlobalState;
+use crate::components::{section, system_icon};
+use crate::message::Message;
+use crate::tray::TrayItem;
 
 #[derive(Debug)]
 pub struct TrayView {
