@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use iced::{
     Border, Color,
     advanced::mouse,

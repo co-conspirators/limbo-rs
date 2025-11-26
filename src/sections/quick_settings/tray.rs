@@ -22,11 +22,8 @@ impl TrayView {
     }
 
     pub fn update(&mut self, message: &Message) {
-        match message {
-            Message::TrayItemsUpdate(items) => {
-                self.items = items.clone();
-            }
-            _ => {}
+        if let Message::TrayItemsUpdate(items) = message {
+            self.items = items.clone();
         }
     }
 
