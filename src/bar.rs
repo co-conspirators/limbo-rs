@@ -10,6 +10,7 @@ use sctk::reexports::client::protocol::wl_output::WlOutput;
 use sctk::shell::wlr_layer::{Anchor, KeyboardInteractivity, Layer};
 
 use crate::GlobalState;
+use crate::animation::{EasedToggle, Easing};
 use crate::components::{icon, section, side};
 use crate::desktop_environment::WorkspaceInfo;
 use crate::message::Message;
@@ -21,7 +22,7 @@ pub struct Bar {
     pub wl_output: WlOutput,
     output_name: String,
     size: Option<Size>,
-    transparent: bool,
+    background_alpha_factor: EasedToggle<f32>,
 
     workspaces: Workspaces,
     clock: Clock,
@@ -42,7 +43,13 @@ impl Bar {
                 wl_output: wl_output.clone(),
                 output_name: output_name.clone(),
                 size: None,
-                transparent: is_transparent(&output_name, &global_state.workspace_infos),
+                background_alpha_factor: EasedToggle::new(
+                    is_transparent(&output_name, &global_state.workspace_infos),
+                    Easing::Smoothstep,
+                    0.25,
+                    1.0,
+                    0.0,
+                ),
 
                 workspaces: Workspaces::new(output_name, global_state),
                 clock: Clock::new(),
@@ -75,8 +82,12 @@ impl Bar {
         self.sysmon.update(message);
         self.tray_view.update(message);
         match message {
+            Message::AnimationTick => {
+                self.background_alpha_factor.update();
+            }
             Message::WorkspacesChanged(workspace_infos) => {
-                self.transparent = is_transparent(&self.output_name, workspace_infos);
+                self.background_alpha_factor
+                    .set_target(is_transparent(&self.output_name, workspace_infos));
             }
             Message::Iced(window_id, Event::Window(window::Event::Opened { size, .. }))
                 if *window_id == self.id =>
@@ -88,6 +99,7 @@ impl Bar {
     }
 
     pub fn view(&self) -> Element<'_, Message> {
+        let background_alpha_factor = self.background_alpha_factor.get();
         container(
             row![
                 // Left
@@ -108,11 +120,12 @@ impl Bar {
             .height(Length::Fill),
         )
         .style(move |theme: &Theme| {
-            if self.transparent {
-                iced::widget::container::transparent(theme)
-            } else {
-                iced::widget::container::background(theme.palette().background)
-            }
+            iced::widget::container::background(
+                theme
+                    .palette()
+                    .background
+                    .scale_alpha(background_alpha_factor),
+            )
         })
         .into()
     }
@@ -128,7 +141,7 @@ impl Bar {
     }
 
     pub fn animation_running(&self) -> bool {
-        self.workspaces.animation_running()
+        self.background_alpha_factor.is_running() || self.workspaces.animation_running()
     }
 }
 
