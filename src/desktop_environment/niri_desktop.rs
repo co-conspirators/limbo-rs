@@ -115,7 +115,7 @@ async fn read_event(
 }
 
 fn make_workspace_infos(state: &EventStreamState) -> Vec<WorkspaceInfo> {
-    state
+    let mut workspace_infos = state
         .workspaces
         .workspaces
         .values()
@@ -141,5 +141,7 @@ fn make_workspace_infos(state: &EventStreamState) -> Vec<WorkspaceInfo> {
                         .all(|win| win.is_floating),
             }
         })
-        .collect()
+        .collect::<Vec<_>>();
+    workspace_infos.sort_by_key(|info| info.idx);
+    workspace_infos
 }

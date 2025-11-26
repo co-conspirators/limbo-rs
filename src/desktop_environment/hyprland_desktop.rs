@@ -89,34 +89,34 @@ async fn make_workspace_infos() -> Option<Vec<WorkspaceInfo>> {
         .into_iter()
         .collect::<Vec<_>>();
 
-    Some(
-        all_workspaces
-            .into_iter()
-            .map(|(id, output)| {
-                if let Some(w) = workspaces.iter().find(|w| (w.id as i64) == id) {
-                    WorkspaceInfo {
-                        output: Some(w.monitor.clone()),
-                        id: w.id as WorkspaceId,
-                        idx: w.id,
-                        is_active: monitors.iter().any(|m| m.active_workspace.id == w.id),
-                        has_windows: w.windows > 0,
-                        transparent_bar: w.windows == 0
-                            || clients
-                                .iter()
-                                .filter(|c| c.workspace.id == w.id)
-                                .all(|c| c.floating),
-                    }
-                } else {
-                    WorkspaceInfo {
-                        output,
-                        id,
-                        idx: id as i32,
-                        is_active: false,
-                        has_windows: false,
-                        transparent_bar: false,
-                    }
+    let mut workspace_infos = all_workspaces
+        .into_iter()
+        .map(|(id, output)| {
+            if let Some(w) = workspaces.iter().find(|w| (w.id as i64) == id) {
+                WorkspaceInfo {
+                    output: Some(w.monitor.clone()),
+                    id: w.id as WorkspaceId,
+                    idx: w.id,
+                    is_active: monitors.iter().any(|m| m.active_workspace.id == w.id),
+                    has_windows: w.windows > 0,
+                    transparent_bar: w.windows == 0
+                        || clients
+                            .iter()
+                            .filter(|c| c.workspace.id == w.id)
+                            .all(|c| c.floating),
                 }
-            })
-            .collect(),
-    )
+            } else {
+                WorkspaceInfo {
+                    output,
+                    id,
+                    idx: id as i32,
+                    is_active: false,
+                    has_windows: false,
+                    transparent_bar: false,
+                }
+            }
+        })
+        .collect::<Vec<_>>();
+    workspace_infos.sort_by_key(|info| info.idx);
+    Some(workspace_infos)
 }
