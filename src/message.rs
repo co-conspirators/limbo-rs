@@ -27,7 +27,7 @@ pub enum Message {
     },
 
     SysinfoUpdate(SysInfo),
-    TrayItems(Vec<crate::tray::TrayItem>),
+    TrayItemsUpdate(Vec<crate::tray::TrayItem>),
 
     AnimationTick,
 }

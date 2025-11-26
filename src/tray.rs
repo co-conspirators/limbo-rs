@@ -69,7 +69,7 @@ impl Tray {
                         None
                     }
                 };
-                value.map(|v| (Message::TrayItems(v), rx))
+                value.map(|v| (Message::TrayItemsUpdate(v), rx))
             }),
         )
     }

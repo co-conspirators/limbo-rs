@@ -3,6 +3,7 @@
 use iced::widget::Row;
 
 use crate::{
+    GlobalState,
     components::{section, system_icon},
     message::Message,
     tray::TrayItem,
@@ -14,13 +15,15 @@ pub struct TrayView {
 }
 
 impl TrayView {
-    pub fn new() -> Self {
-        Self { items: vec![] }
+    pub fn new(global_state: &GlobalState) -> Self {
+        Self {
+            items: global_state.tray_items.clone(),
+        }
     }
 
     pub fn update(&mut self, message: &Message) {
         match message {
-            Message::TrayItems(items) => {
+            Message::TrayItemsUpdate(items) => {
                 self.items = items.clone();
             }
             _ => {}

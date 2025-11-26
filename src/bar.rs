@@ -6,7 +6,9 @@ use iced::{
 use sctk::reexports::client::protocol::wl_output::WlOutput;
 
 use crate::{
+    GlobalState,
     components::{icon, section, side},
+    desktop_environment::WorkspaceInfo,
     message::Message,
     sections::{Clock, Sysmon, TrayView, Workspaces},
 };
@@ -25,17 +27,22 @@ pub struct Bar {
 }
 
 impl Bar {
-    pub fn new(id: window::Id, wl_output: WlOutput, output_name: String) -> Self {
+    pub fn new(
+        id: window::Id,
+        wl_output: WlOutput,
+        output_name: String,
+        global_state: &GlobalState,
+    ) -> Self {
         Self {
             id,
             wl_output,
-            output_name,
-            transparent: false,
+            output_name: output_name.clone(),
+            transparent: is_transparent(&output_name, &global_state.workspace_infos),
 
-            workspaces: Workspaces::new(),
+            workspaces: Workspaces::new(output_name, global_state),
             clock: Clock::new(),
-            sysmon: Sysmon::new(),
-            tray_view: TrayView::new(),
+            sysmon: Sysmon::new(global_state),
+            tray_view: TrayView::new(global_state),
         }
     }
 
@@ -45,11 +52,7 @@ impl Bar {
         self.sysmon.update(message);
         self.tray_view.update(message);
         if let Message::WorkspacesChanged(workspace_infos) = message {
-            self.transparent = workspace_infos
-                .iter()
-                .filter(|w| w.output.as_ref() == Some(&self.output_name))
-                .find(|w| w.is_active)
-                .is_some_and(|w| w.transparent_bar);
+            self.transparent = is_transparent(&self.output_name, workspace_infos);
         };
     }
 
@@ -95,4 +98,12 @@ impl Bar {
         }
         iced::Subscription::batch(subscriptions)
     }
+}
+
+fn is_transparent(output_name: &String, workspace_infos: &[WorkspaceInfo]) -> bool {
+    workspace_infos
+        .iter()
+        .filter(|w| w.output.as_ref() == Some(output_name))
+        .find(|w| w.is_active)
+        .is_some_and(|w| w.transparent_bar)
 }

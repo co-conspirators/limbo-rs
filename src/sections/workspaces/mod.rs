@@ -6,18 +6,24 @@ use iced::{
     widget::{Row, container, mouse_area, text},
 };
 
-use crate::{components::section, message::Message};
+use crate::{
+    GlobalState, components::section, desktop_environment::WorkspaceInfo, message::Message,
+};
 
 mod state;
 use state::WorkspaceState;
 
 pub struct Workspaces {
     states: Vec<WorkspaceState>,
+    output_name: String,
 }
 
 impl Workspaces {
-    pub fn new() -> Self {
-        Self { states: vec![] }
+    pub fn new(output_name: String, global_state: &GlobalState) -> Self {
+        Self {
+            states: update_states(&output_name, &global_state.workspace_infos, &[]),
+            output_name,
+        }
     }
 
     pub fn update(&mut self, message: &Message) {
@@ -28,11 +34,7 @@ impl Workspaces {
                 }
             }
             Message::WorkspacesChanged(workspace_infos) => {
-                // TODO: filter by output name
-                self.states = workspace_infos
-                    .iter()
-                    .map(|info| WorkspaceState::from_existing(&self.states, info.clone()))
-                    .collect();
+                self.states = update_states(&self.output_name, workspace_infos, &self.states);
             }
             _ => {}
         }
@@ -88,4 +90,16 @@ impl Workspaces {
             .any(|w| w.needs_update())
             .then(|| iced::time::every(Duration::from_millis(25)).map(|_| Message::AnimationTick))
     }
+}
+
+fn update_states(
+    output_name: &String,
+    workspace_infos: &[WorkspaceInfo],
+    old_states: &[WorkspaceState],
+) -> Vec<WorkspaceState> {
+    workspace_infos
+        .iter()
+        .filter(|info| info.output.as_ref() == Some(&output_name))
+        .map(|info| WorkspaceState::from_existing(old_states, info.clone()))
+        .collect()
 }

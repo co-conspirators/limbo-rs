@@ -14,7 +14,12 @@ use sctk::{
     shell::wlr_layer::{Anchor, KeyboardInteractivity, Layer},
 };
 
-use crate::{desktop_environment::Desktop, message::Message, tray::Tray};
+use crate::{
+    desktop_environment::{Desktop, WorkspaceInfo},
+    message::Message,
+    sections::SysInfo,
+    tray::{Tray, TrayItem},
+};
 
 mod bar;
 mod components;
@@ -58,7 +63,16 @@ pub async fn main() -> iced::Result {
         .run_with(Limbo::new)
 }
 
+/// Global state for use when initializing new bars.
+#[derive(Default)]
+pub struct GlobalState {
+    workspace_infos: Vec<WorkspaceInfo>,
+    sysinfo: SysInfo,
+    tray_items: Vec<TrayItem>,
+}
+
 struct Limbo {
+    global_state: GlobalState,
     bars: Vec<Bar>,
     desktop: Desktop,
     tray: Tray,
@@ -68,6 +82,7 @@ impl Limbo {
     fn new() -> (Self, Task<Message>) {
         (
             Self {
+                global_state: GlobalState::default(),
                 bars: Vec::new(),
                 desktop: Desktop::new(),
                 tray: Tray::new(),
@@ -123,12 +138,24 @@ impl Limbo {
                 }
                 _ => Task::none(),
             },
+            Message::WorkspacesChanged(workspace_infos) => {
+                self.global_state.workspace_infos = workspace_infos;
+                Task::none()
+            }
             Message::FocusWorkspace(id) => {
                 self.desktop.focus_workspace(id);
                 Task::none()
             }
             Message::CycleWorkspace { forward } => {
                 self.desktop.cycle_workspace(forward);
+                Task::none()
+            }
+            Message::SysinfoUpdate(sysinfo) => {
+                self.global_state.sysinfo = sysinfo;
+                Task::none()
+            }
+            Message::TrayItemsUpdate(tray_items) => {
+                self.global_state.tray_items = tray_items;
                 Task::none()
             }
             _ => Task::none(),
@@ -171,7 +198,12 @@ impl Limbo {
 
     fn spawn_bar(&mut self, wl_output: WlOutput, output_name: String) -> Task<Message> {
         let id = window::Id::unique();
-        self.bars.push(Bar::new(id, wl_output.clone(), output_name));
+        self.bars.push(Bar::new(
+            id,
+            wl_output.clone(),
+            output_name,
+            &self.global_state,
+        ));
 
         get_layer_surface(SctkLayerSurfaceSettings {
             id,
