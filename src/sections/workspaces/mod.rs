@@ -1,9 +1,12 @@
+use std::rc::Rc;
+
 use iced::Border;
 use iced::advanced::mouse;
 use iced::widget::{Row, container, mouse_area, text};
 
 use crate::GlobalState;
 use crate::components::section;
+use crate::config::Config;
 use crate::desktop_environment::WorkspaceInfo;
 use crate::message::Message;
 
@@ -11,14 +14,17 @@ mod state;
 use state::WorkspaceState;
 
 pub struct Workspaces {
+    config: Rc<Config>,
     states: Vec<WorkspaceState>,
     output_name: String,
 }
 
 impl Workspaces {
     pub fn new(output_name: String, global_state: &GlobalState) -> Self {
+        let config = global_state.config.clone();
         Self {
-            states: update_states(&output_name, &global_state.workspace_infos, &[]),
+            states: update_states(&output_name, &global_state.workspace_infos, &[], &config),
+            config,
             output_name,
         }
     }
@@ -31,7 +37,12 @@ impl Workspaces {
                 }
             }
             Message::WorkspacesChanged(workspace_infos) => {
-                self.states = update_states(&self.output_name, workspace_infos, &self.states);
+                self.states = update_states(
+                    &self.output_name,
+                    workspace_infos,
+                    &self.states,
+                    &self.config,
+                );
             }
             _ => {}
         }
@@ -91,10 +102,11 @@ fn update_states(
     output_name: &String,
     workspace_infos: &[WorkspaceInfo],
     old_states: &[WorkspaceState],
+    config: &Config,
 ) -> Vec<WorkspaceState> {
     workspace_infos
         .iter()
         .filter(|info| info.output.as_ref() == Some(output_name))
-        .map(|info| WorkspaceState::from_existing(old_states, info.clone()))
+        .map(|info| WorkspaceState::from_existing(old_states, info.clone(), config))
         .collect()
 }

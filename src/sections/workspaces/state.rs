@@ -10,16 +10,23 @@ pub struct WorkspaceState {
     color: EasedToggle<Color>,
 }
 
-impl From<WorkspaceInfo> for WorkspaceState {
-    fn from(info: WorkspaceInfo) -> Self {
+impl WorkspaceState {
+    fn new(info: WorkspaceInfo, config: &crate::config::Config) -> Self {
         Self {
             width: EasedToggle::new(info.is_active, Easing::Linear, 100., 5.0, 11.0),
+            // TODO: use has_windows color
             color: EasedToggle::new(
                 info.has_windows || info.is_active,
                 Easing::Smoothstep,
                 100.,
-                Color::from_rgb8(88, 91, 112),
-                Color::from_rgb8(137, 180, 250),
+                config
+                    .theme
+                    .resolve_color(&config.bar.workspaces.color.normal)
+                    .unwrap_or(Color::from_rgb8(88, 91, 112)),
+                config
+                    .theme
+                    .resolve_color(&config.bar.workspaces.color.active)
+                    .unwrap_or(Color::from_rgb8(137, 180, 250)),
             ),
             info,
         }
@@ -27,7 +34,11 @@ impl From<WorkspaceInfo> for WorkspaceState {
 }
 
 impl WorkspaceState {
-    pub fn from_existing(states: &[WorkspaceState], info: WorkspaceInfo) -> Self {
+    pub fn from_existing(
+        states: &[WorkspaceState],
+        info: WorkspaceInfo,
+        config: &crate::config::Config,
+    ) -> Self {
         if let Some(state) = states.iter().find(|s| s.info.id == info.id) {
             Self {
                 width: state.width.with_target(info.is_active),
@@ -35,7 +46,7 @@ impl WorkspaceState {
                 info,
             }
         } else {
-            Self::from(info)
+            Self::new(info, config)
         }
     }
 
