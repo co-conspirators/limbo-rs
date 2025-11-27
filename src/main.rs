@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use iced::daemon::{Appearance, DefaultStyle};
 use iced::event::{PlatformSpecific, wayland};
 use iced::theme::Palette;
@@ -11,6 +13,7 @@ use crate::tray::{Tray, TrayItem};
 mod animation;
 mod bar;
 mod components;
+mod config;
 mod desktop_environment;
 mod icons;
 mod message;
@@ -18,6 +21,7 @@ mod sections;
 mod tray;
 
 use bar::Bar;
+use config::Config;
 
 #[tokio::main]
 pub async fn main() -> iced::Result {
@@ -29,6 +33,8 @@ pub async fn main() -> iced::Result {
             std::env::set_var("WGPU_POWER_PREF", "high");
         }
     }
+
+    let config = Config::load().unwrap_or_default();
 
     iced::daemon("limbo", Limbo::update, Limbo::view)
         .settings(Settings {
@@ -48,12 +54,13 @@ pub async fn main() -> iced::Result {
         .subscription(Limbo::subscription)
         .theme(Limbo::theme)
         .style(Limbo::style)
-        .run_with(Limbo::new)
+        .run_with(move || Limbo::new(config))
 }
 
 /// Global state for use when initializing new bars.
 #[derive(Default)]
 pub struct GlobalState {
+    config: Rc<Config>,
     workspace_infos: Vec<WorkspaceInfo>,
     sysinfo: SysInfo,
     tray_items: Vec<TrayItem>,
@@ -67,10 +74,13 @@ struct Limbo {
 }
 
 impl Limbo {
-    fn new() -> (Self, Task<Message>) {
+    fn new(config: Config) -> (Self, Task<Message>) {
         (
             Self {
-                global_state: GlobalState::default(),
+                global_state: GlobalState {
+                    config: Rc::new(config),
+                    ..Default::default()
+                },
                 bars: Vec::new(),
                 desktop: Desktop::new(),
                 tray: Tray::new(),

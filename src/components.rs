@@ -75,3 +75,9 @@ pub fn icon_filled(name: &'_ str, color: Option<Color>) -> Svg<'_> {
     })
     .width(Length::Shrink)
 }
+
+impl crate::config::Config {
+    pub fn icon(&self, i: &crate::config::types::Icon) -> Svg<'static> {
+        icon(&i.name, self.theme.resolve_color(&i.color))
+    }
+}

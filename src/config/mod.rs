@@ -1,8 +1,7 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
 use clap::Parser;
 use config::{Config as ConfigBuilder, ConfigError, Environment, File};
-use serde::{Deserialize, Serialize};
 
 mod types;
 pub use types::Config;
@@ -41,7 +40,8 @@ impl Config {
         let mut builder = ConfigBuilder::builder();
 
         // 1. Start with default values (optional)
-        builder = builder.add_source(Config::defaults());
+        let defaults = ConfigBuilder::try_from(&Config::default())?;
+        builder = builder.add_source(defaults);
 
         // 2. Load from config files in ~/.config/limbo/
         let config_dir = dirs::config_dir()
