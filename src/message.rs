@@ -1,5 +1,4 @@
-use iced::event::wayland::Event as WaylandEvent;
-use iced::window;
+use iced::{Event, window};
 
 use crate::desktop_environment::{WorkspaceId, WorkspaceInfo};
 use crate::sections::SysInfo;
@@ -11,7 +10,7 @@ pub enum BarMessage {
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    Wayland(WaylandEvent),
+    Iced(Event),
     Bar(window::Id, BarMessage),
 
     WorkspacesChanged(Vec<WorkspaceInfo>),
