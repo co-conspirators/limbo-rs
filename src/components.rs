@@ -77,7 +77,15 @@ pub fn icon_filled(name: &'_ str, color: Option<Color>) -> Svg<'static> {
 }
 
 impl crate::config::Config {
-    pub fn icon(&self, i: &crate::config::types::Icon) -> Svg<'static> {
-        icon(&i.name, self.theme.resolve_color(&i.color))
+    pub fn icon(&self, _icon: &crate::config::types::Icon) -> Svg<'static> {
+        icon(&_icon.name, self.theme.resolve_color(&_icon.color))
+    }
+
+    pub fn text_with_icon<'a, Message: 'a>(
+        &self,
+        _icon: &'a crate::config::types::Icon,
+        _text: impl text::IntoFragment<'a>,
+    ) -> iced::Element<'a, Message> {
+        text_with_icon(&_icon.name, self.theme.resolve_color(&_icon.color), _text)
     }
 }

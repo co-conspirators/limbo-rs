@@ -101,7 +101,7 @@ impl Limbo {
                 }
                 _ => None,
             }),
-            Sysmon::subscription(),
+            Sysmon::subscription(&self.global_state.config),
             self.tray.subscription(),
             self.desktop.subscription(),
         ];

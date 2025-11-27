@@ -1,14 +1,17 @@
 use std::collections::HashSet;
+use std::hash::Hash;
+use std::rc::Rc;
 use std::sync::LazyLock;
 use std::time::Duration;
 
-use iced::Color;
 use iced::futures::StreamExt;
-use iced::widget::row;
+use iced::widget::Row;
 use sysinfo::{Components, CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 
 use crate::GlobalState;
-use crate::components::{section, text_with_icon};
+use crate::components::section;
+use crate::config::Config;
+use crate::config::types::SysMonSegment;
 use crate::message::Message;
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -20,12 +23,14 @@ pub struct SysInfo {
 
 #[derive(Debug)]
 pub struct Sysmon {
+    config: Rc<Config>,
     info: SysInfo,
 }
 
 impl Sysmon {
     pub fn new(global_state: &GlobalState) -> Self {
         Self {
+            config: global_state.config.clone(),
             info: global_state.sysinfo,
         }
     }
@@ -37,48 +42,64 @@ impl Sysmon {
     }
 
     pub fn view(&self) -> iced::Element<'_, Message> {
-        section(
-            row![
-                text_with_icon(
-                    "cpu",
-                    Some(Color::from_rgb8(0xb4, 0xbe, 0xfe)),
-                    format!("{:.1}%", self.info.cpu_usage)
-                ),
-                text_with_icon(
-                    "temperature",
-                    Some(Color::from_rgb8(0xf3, 0x8b, 0xa8)),
-                    format!("{:.0}°", self.info.cpu_temp)
-                ),
-                text_with_icon(
-                    "cpu-2",
-                    Some(Color::from_rgb8(0xf5, 0xc2, 0xe7)),
-                    format!("{:.1} GB", self.info.ram)
-                ),
-            ]
-            .spacing(12),
-        )
-        .into()
-    }
+        let cfg = &self.config.bar.sysmon;
 
-    pub fn subscription() -> iced::Subscription<Message> {
-        let init = iced::futures::stream::once(async {
-            // run these inside the stream with `once` to avoid initializing on each call to `subscription`
-            (
-                System::new_with_specifics(
-                    RefreshKind::nothing()
-                        .with_cpu(CpuRefreshKind::nothing().with_cpu_usage())
-                        .with_memory(MemoryRefreshKind::nothing().with_ram()),
-                ),
-                Components::new_with_refreshed_list(),
-                true,
-            )
+        let segments = cfg.segments.iter().map(|segment| match segment {
+            SysMonSegment::Cpu => self.config.text_with_icon(
+                &self.config.bar.sysmon.cpu.icon,
+                format!("{:.*}%", cfg.precision, self.info.cpu_usage),
+            ),
+            SysMonSegment::Temp => self.config.text_with_icon(
+                &self.config.bar.sysmon.temp.icon,
+                format!("{:.*}°", cfg.precision, self.info.cpu_temp),
+            ),
+            SysMonSegment::Ram => self.config.text_with_icon(
+                &self.config.bar.sysmon.ram.icon,
+                format!("{:.*} GB", cfg.precision, self.info.ram),
+            ),
         });
 
-        let stream = init.flat_map(|init| {
-            iced::futures::stream::unfold(init, |(mut system, mut components, first)| async move {
+        section(Row::from_iter(segments).spacing(12)).into()
+    }
+
+    pub fn subscription(config: &Config) -> iced::Subscription<Message> {
+        iced::advanced::subscription::from_recipe(SysmonSubscription {
+            probe_interval_ms: config.bar.sysmon.probe_interval_ms,
+        })
+    }
+}
+
+#[derive(Hash)]
+struct SysmonSubscription {
+    probe_interval_ms: u64,
+}
+
+impl iced::advanced::subscription::Recipe for SysmonSubscription {
+    type Output = Message;
+
+    fn hash(&self, state: &mut iced::advanced::subscription::Hasher) {
+        <Self as std::hash::Hash>::hash(self, state);
+    }
+
+    fn stream(
+        self: Box<Self>,
+        _input: iced::advanced::subscription::EventStream,
+    ) -> iced::runtime::futures::BoxStream<Self::Output> {
+        let prove_interval_ms = self.probe_interval_ms;
+
+        let system = System::new_with_specifics(
+            RefreshKind::nothing()
+                .with_cpu(CpuRefreshKind::nothing().with_cpu_usage())
+                .with_memory(MemoryRefreshKind::nothing().with_ram()),
+        );
+        let components = Components::new_with_refreshed_list();
+
+        let stream = iced::futures::stream::unfold(
+            (system, components, true),
+            move |(mut system, mut components, first)| async move {
                 // during the first iteration, update immediately
                 if !first {
-                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    tokio::time::sleep(Duration::from_millis(prove_interval_ms)).await;
                 }
 
                 system.refresh_cpu_usage();
@@ -117,12 +138,8 @@ impl Sysmon {
                 };
 
                 Some((Message::SysinfoUpdate(info), (system, components, false)))
-            })
-        });
-
-        #[derive(Hash)]
-        struct SysmonSubscription;
-
-        iced::Subscription::run_with_id(SysmonSubscription, stream)
+            },
+        );
+        stream.boxed()
     }
 }

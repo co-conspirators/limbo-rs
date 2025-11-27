@@ -1,8 +1,6 @@
-#![allow(unused)]
-
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -825,8 +823,8 @@ pub enum SysMonSegment {
 #[serde(rename_all = "camelCase")]
 pub struct SysMon {
     pub segments: Vec<SysMonSegment>,
-    pub probe_interval_ms: u32,
-    pub precision: u32,
+    pub probe_interval_ms: u64,
+    pub precision: usize,
     pub cpu: Cpu,
     pub temp: Temp,
     pub ram: Ram,
