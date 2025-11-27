@@ -1,29 +1,27 @@
+use std::rc::Rc;
+
 use iced::id::Id;
 use iced::widget::{mouse_area, row, text};
 
-use crate::components::{icon, section};
+use crate::GlobalState;
+use crate::components::section;
+use crate::config::Config;
+use crate::config::types::TimeFormat;
 use crate::message::Message;
-
-#[derive(Debug, Clone, Copy)]
-enum TimeFormat {
-    _12h,
-    _24h,
-}
 
 pub struct Clock {
     id: Id,
+    config: Rc<Config>,
     now: jiff::Zoned,
-    format: TimeFormat,
     expanded: bool,
 }
 
 impl Clock {
-    pub fn new() -> Self {
+    pub fn new(global_state: &GlobalState) -> Self {
         Self {
             id: Id::unique(),
+            config: global_state.config.clone(),
             now: jiff::Zoned::now(),
-            // TODO: make configurable
-            format: TimeFormat::_12h,
             expanded: false,
         }
     }
@@ -42,7 +40,7 @@ impl Clock {
     }
 
     pub fn view(&self) -> iced::Element<'_, Message> {
-        let format = match (self.format, self.expanded) {
+        let format = match (self.config.general.time_format, self.expanded) {
             // Sun 5:14 PM
             (TimeFormat::_12h, false) => "%a %-I:%M %p",
             // Sunday, Jun 22 5:14:34 PM
@@ -55,7 +53,11 @@ impl Clock {
         let formatted_date = self.now.strftime(format).to_string();
 
         mouse_area(section(
-            row![icon("clock", None), text(formatted_date)].spacing(8),
+            row![
+                self.config.icon(&self.config.bar.clock.icon),
+                text(formatted_date)
+            ]
+            .spacing(8),
         ))
         .on_press(Message::ClockToggleExpanded(self.id.clone()))
         .into()

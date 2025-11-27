@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use config::{Config as ConfigBuilder, ConfigError, Environment, File};
 
-mod types;
+pub mod types;
 pub use types::Config;
 
 #[derive(Parser, Debug)]

@@ -24,14 +24,14 @@ pub struct General {
     pub debug: bool,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TimeFormat {
     #[default]
     #[serde(rename = "12h")]
-    Twelve,
+    _12h,
     #[serde(rename = "24h")]
-    TwentyFour,
+    _24h,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]

@@ -55,7 +55,7 @@ pub fn system_icon<'a, Message>(name: &str) -> Option<Element<'a, Message>> {
     Some(image(image::Handle::from_path(icon_path)).into())
 }
 
-pub fn icon(name: &'_ str, color: Option<Color>) -> Svg<'_> {
+pub fn icon(name: &'_ str, color: Option<Color>) -> Svg<'static> {
     svg(Handle::from_memory(
         Icons::get(&format!("{name}.svg")).unwrap().data,
     ))
@@ -66,7 +66,7 @@ pub fn icon(name: &'_ str, color: Option<Color>) -> Svg<'_> {
     .height(Length::Fixed(16.))
 }
 
-pub fn icon_filled(name: &'_ str, color: Option<Color>) -> Svg<'_> {
+pub fn icon_filled(name: &'_ str, color: Option<Color>) -> Svg<'static> {
     svg(Handle::from_memory(
         IconsFilled::get(&format!("{name}.svg")).unwrap().data,
     ))

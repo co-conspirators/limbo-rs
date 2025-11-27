@@ -52,7 +52,7 @@ impl Bar {
                 ),
 
                 workspaces: Workspaces::new(output_name, global_state),
-                clock: Clock::new(),
+                clock: Clock::new(global_state),
                 sysmon: Sysmon::new(global_state),
                 tray_view: TrayView::new(global_state),
             },
