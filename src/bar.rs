@@ -69,7 +69,7 @@ impl Bar {
 
     pub fn update(&mut self, message: &Message) {
         self.workspaces.update(message);
-        self.clock.update(message, self.id);
+        self.clock.update(message);
         self.sysmon.update(message);
         self.tray_view.update(message);
         if let Message::WorkspacesChanged(workspace_infos) = message {
@@ -90,12 +90,7 @@ impl Bar {
                 // Right
                 side(
                     Alignment::End,
-                    row![
-                        self.tray_view.view(),
-                        self.sysmon.view(),
-                        self.clock.view(self.id)
-                    ]
-                    .spacing(12)
+                    row![self.tray_view.view(), self.sysmon.view(), self.clock.view()].spacing(12)
                 ),
             ]
             .padding([4, 8])
