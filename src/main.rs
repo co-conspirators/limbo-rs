@@ -2,16 +2,8 @@ use std::time::Duration;
 
 use iced::daemon::{Appearance, DefaultStyle};
 use iced::event::wayland::{Event as WaylandEvent, LayerEvent, OutputEvent};
-use iced::platform_specific::shell::commands::layer_surface::{
-    destroy_layer_surface, get_layer_surface,
-};
-use iced::runtime::platform_specific::wayland::layer_surface::{
-    IcedMargin, IcedOutput, SctkLayerSurfaceSettings,
-};
 use iced::theme::Palette;
 use iced::{Color, Element, Settings, Task, Theme, window};
-use sctk::reexports::client::protocol::wl_output::WlOutput;
-use sctk::shell::wlr_layer::{Anchor, KeyboardInteractivity, Layer};
 
 use crate::desktop_environment::{Desktop, WorkspaceInfo};
 use crate::message::Message;
@@ -127,14 +119,17 @@ impl Limbo {
             Message::Wayland(evt) => match evt {
                 WaylandEvent::Output(OutputEvent::Created(output_info), wl_output) => {
                     if let Some(output_name) = output_info.and_then(|o| o.name) {
-                        self.spawn_bar(wl_output, output_name)
+                        let (bar, spawn_task) =
+                            Bar::new(wl_output.clone(), output_name, &self.global_state);
+                        self.bars.push(bar);
+                        spawn_task
                     } else {
                         Task::none()
                     }
                 }
                 WaylandEvent::Output(OutputEvent::Removed, wl_output) => {
                     let removed_bars = self.bars.extract_if(.., |bar| bar.wl_output == wl_output);
-                    Task::batch(removed_bars.map(|bar| destroy_layer_surface(bar.id)))
+                    Task::batch(removed_bars.map(|bar| bar.destroy()))
                 }
                 WaylandEvent::Layer(LayerEvent::Done, _wl_surface, id) => {
                     self.bars.retain(|bar| bar.id != id);
@@ -198,29 +193,5 @@ impl Limbo {
             background_color: iced::Color::TRANSPARENT,
             ..DefaultStyle::default_style(theme)
         }
-    }
-
-    fn spawn_bar(&mut self, wl_output: WlOutput, output_name: String) -> Task<Message> {
-        let id = window::Id::unique();
-        self.bars.push(Bar::new(
-            id,
-            wl_output.clone(),
-            output_name,
-            &self.global_state,
-        ));
-
-        get_layer_surface(SctkLayerSurfaceSettings {
-            id,
-            layer: Layer::Top,
-            keyboard_interactivity: KeyboardInteractivity::None,
-            input_zone: None,
-            anchor: Anchor::TOP | Anchor::LEFT | Anchor::RIGHT,
-            output: IcedOutput::Output(wl_output),
-            namespace: "limbo:bar".to_string(),
-            margin: IcedMargin::default(),
-            size: Some((None, Some(40))),
-            exclusive_zone: 40,
-            size_limits: iced::Limits::NONE,
-        })
     }
 }
