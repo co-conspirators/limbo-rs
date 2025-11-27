@@ -46,7 +46,7 @@ impl Bar {
                 background_alpha_factor: EasedToggle::new(
                     is_transparent(&output_name, &global_state.workspace_infos),
                     Easing::Smoothstep,
-                    0.25,
+                    200.,
                     1.0,
                     0.0,
                 ),

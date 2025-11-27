@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use iced::daemon::{Appearance, DefaultStyle};
 use iced::event::{PlatformSpecific, wayland};
 use iced::theme::Palette;
@@ -99,8 +97,7 @@ impl Limbo {
         ];
 
         if self.animation_running() {
-            subscriptions
-                .push(iced::time::every(Duration::from_millis(25)).map(|_| Message::AnimationTick));
+            subscriptions.push(animation::subscription());
         }
 
         subscriptions.extend(self.bars.iter().map(|bar| bar.subscription()));

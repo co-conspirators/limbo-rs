@@ -1,5 +1,12 @@
+use std::time::Duration;
+
 use color::{AlphaColor, Lab, Srgb};
 use iced::Color;
+
+use crate::message::Message;
+
+/// Interval in milliseconds between `Message::AnimationTick` events.
+const ANIMATION_TICKRATE: u64 = (1000. / 60.) as u64;
 
 pub trait Lerpable {
     fn lerp(start: &Self, end: &Self, factor: f32) -> Self;
@@ -59,10 +66,10 @@ pub struct EasedToggle<V> {
 }
 
 impl<V: Lerpable> EasedToggle<V> {
-    pub fn new(target: bool, easing: Easing, speed: f32, f: V, t: V) -> Self {
+    pub fn new(target: bool, easing: Easing, duration: f32, f: V, t: V) -> Self {
         Self {
             easing,
-            speed,
+            speed: ANIMATION_TICKRATE as f32 / duration,
             target,
             progress: if target { 1.0 } else { 0.0 },
             f,
@@ -95,4 +102,8 @@ impl<V: Lerpable> EasedToggle<V> {
         let factor = self.easing.ease(self.progress);
         Lerpable::lerp(&self.f, &self.t, factor)
     }
+}
+
+pub fn subscription() -> iced::Subscription<Message> {
+    iced::time::every(Duration::from_millis(ANIMATION_TICKRATE)).map(|_| Message::AnimationTick)
 }

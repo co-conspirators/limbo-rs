@@ -13,11 +13,11 @@ pub struct WorkspaceState {
 impl From<WorkspaceInfo> for WorkspaceState {
     fn from(info: WorkspaceInfo) -> Self {
         Self {
-            width: EasedToggle::new(info.is_active, Easing::Linear, 0.25, 5.0, 11.0),
+            width: EasedToggle::new(info.is_active, Easing::Linear, 100., 5.0, 11.0),
             color: EasedToggle::new(
                 info.has_windows || info.is_active,
                 Easing::Smoothstep,
-                0.25,
+                100.,
                 Color::from_rgb8(88, 91, 112),
                 Color::from_rgb8(137, 180, 250),
             ),
