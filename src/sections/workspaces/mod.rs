@@ -70,7 +70,12 @@ impl Workspaces {
                         mouse::ScrollDelta::Pixels { y, .. } => y,
                         mouse::ScrollDelta::Lines { y, .. } => y,
                     };
-                    Message::CycleWorkspace { forward: y <= 0.0 }
+                    if y == 0.0 {
+                        Message::AnimationTick
+                    } else {
+                        // TODO: debounce scrolling with `ScrollDelta::Pixels`
+                        Message::CycleWorkspace { forward: y <= 0.0 }
+                    }
                 })
                 .into()
             })
