@@ -1,12 +1,12 @@
-use iced::Event;
 use iced::id::Id;
+use iced::{Event, window};
 
 use crate::desktop_environment::{WorkspaceId, WorkspaceInfo};
 use crate::sections::SysInfo;
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    Iced(Event),
+    Iced(window::Id, Event),
 
     WorkspacesChanged(Vec<WorkspaceInfo>),
     FocusWorkspace(WorkspaceId),

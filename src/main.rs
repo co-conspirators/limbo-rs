@@ -65,8 +65,6 @@ struct Limbo {
     bars: Vec<Bar>,
     desktop: Desktop,
     tray: Tray,
-
-    currently_opening_windows: usize,
 }
 
 impl Limbo {
@@ -77,7 +75,6 @@ impl Limbo {
                 bars: Vec::new(),
                 desktop: Desktop::new(),
                 tray: Tray::new(),
-                currently_opening_windows: 0,
             },
             Task::none(),
         )
@@ -85,12 +82,14 @@ impl Limbo {
 
     fn subscription(&self) -> iced::Subscription<Message> {
         let mut subscriptions = vec![
-            iced::event::listen_with(|evt, _, _| match evt {
+            iced::event::listen_with(|evt, _, window_id| match evt {
                 Event::PlatformSpecific(PlatformSpecific::Wayland(
                     wayland::Event::Output(_, _)
                     | wayland::Event::Layer(wayland::LayerEvent::Done, _, _),
                 ))
-                | Event::Window(window::Event::Opened { .. }) => Some(Message::Iced(evt)),
+                | Event::Window(window::Event::Opened { .. }) => {
+                    Some(Message::Iced(window_id, evt))
+                }
                 _ => None,
             }),
             Sysmon::subscription(),
@@ -114,31 +113,32 @@ impl Limbo {
         }
 
         match message {
-            Message::Iced(Event::PlatformSpecific(PlatformSpecific::Wayland(evt))) => match evt {
-                wayland::Event::Output(wayland::OutputEvent::Created(output_info), wl_output) => {
-                    if let Some(output_name) = output_info.and_then(|o| o.name) {
-                        let (bar, spawn_task) =
-                            Bar::new(wl_output.clone(), output_name, &self.global_state);
-                        self.bars.push(bar);
-                        self.currently_opening_windows += 1;
-                        spawn_task
-                    } else {
+            Message::Iced(_, Event::PlatformSpecific(PlatformSpecific::Wayland(evt))) => {
+                match evt {
+                    wayland::Event::Output(
+                        wayland::OutputEvent::Created(output_info),
+                        wl_output,
+                    ) => {
+                        if let Some(output_name) = output_info.and_then(|o| o.name) {
+                            let (bar, spawn_task) =
+                                Bar::new(wl_output.clone(), output_name, &self.global_state);
+                            self.bars.push(bar);
+                            spawn_task
+                        } else {
+                            Task::none()
+                        }
+                    }
+                    wayland::Event::Output(wayland::OutputEvent::Removed, wl_output) => {
+                        let removed_bars =
+                            self.bars.extract_if(.., |bar| bar.wl_output == wl_output);
+                        Task::batch(removed_bars.map(|bar| bar.destroy()))
+                    }
+                    wayland::Event::Layer(wayland::LayerEvent::Done, _wl_surface, id) => {
+                        self.bars.retain(|bar| bar.id != id);
                         Task::none()
                     }
+                    _ => Task::none(),
                 }
-                wayland::Event::Output(wayland::OutputEvent::Removed, wl_output) => {
-                    let removed_bars = self.bars.extract_if(.., |bar| bar.wl_output == wl_output);
-                    Task::batch(removed_bars.map(|bar| bar.destroy()))
-                }
-                wayland::Event::Layer(wayland::LayerEvent::Done, _wl_surface, id) => {
-                    self.bars.retain(|bar| bar.id != id);
-                    Task::none()
-                }
-                _ => Task::none(),
-            },
-            Message::Iced(Event::Window(window::Event::Opened { .. })) => {
-                self.currently_opening_windows -= 1;
-                Task::none()
             }
             Message::WorkspacesChanged(workspace_infos) => {
                 self.global_state.workspace_infos = workspace_infos;
@@ -205,6 +205,8 @@ impl Limbo {
         // a flicker during window creation. The issue resolves itself as soon as any event
         // triggers a redraw. To mask this, we force early redraws by emitting
         // `Message::AnimationTick` while any window is opening.
-        self.currently_opening_windows > 0 || self.bars.iter().any(|bar| bar.animation_running())
+        self.bars
+            .iter()
+            .any(|bar| !bar.opened() || bar.animation_running())
     }
 }

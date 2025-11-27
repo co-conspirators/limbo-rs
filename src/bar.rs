@@ -5,7 +5,7 @@ use iced::runtime::platform_specific::wayland::layer_surface::{
     IcedMargin, IcedOutput, SctkLayerSurfaceSettings,
 };
 use iced::widget::{container, row};
-use iced::{Alignment, Element, Length, Task, Theme, window};
+use iced::{Alignment, Element, Event, Length, Size, Task, Theme, window};
 use sctk::reexports::client::protocol::wl_output::WlOutput;
 use sctk::shell::wlr_layer::{Anchor, KeyboardInteractivity, Layer};
 
@@ -20,6 +20,7 @@ pub struct Bar {
     pub id: window::Id,
     pub wl_output: WlOutput,
     output_name: String,
+    size: Option<Size>,
     transparent: bool,
 
     workspaces: Workspaces,
@@ -40,6 +41,7 @@ impl Bar {
                 id,
                 wl_output: wl_output.clone(),
                 output_name: output_name.clone(),
+                size: None,
                 transparent: is_transparent(&output_name, &global_state.workspace_infos),
 
                 workspaces: Workspaces::new(output_name, global_state),
@@ -72,8 +74,16 @@ impl Bar {
         self.clock.update(message);
         self.sysmon.update(message);
         self.tray_view.update(message);
-        if let Message::WorkspacesChanged(workspace_infos) = message {
-            self.transparent = is_transparent(&self.output_name, workspace_infos);
+        match message {
+            Message::WorkspacesChanged(workspace_infos) => {
+                self.transparent = is_transparent(&self.output_name, workspace_infos);
+            }
+            Message::Iced(window_id, Event::Window(window::Event::Opened { size, .. }))
+                if *window_id == self.id =>
+            {
+                self.size = Some(*size)
+            }
+            _ => (),
         };
     }
 
@@ -107,12 +117,18 @@ impl Bar {
         .into()
     }
 
-    pub fn animation_running(&self) -> bool {
-        self.workspaces.animation_running()
-    }
-
     pub fn subscription(&self) -> iced::Subscription<Message> {
         self.clock.subscription()
+    }
+
+    /// Whether the window has opened, indicated by receiving an
+    /// `iced::Event::Window(iced::window::Event::Opened { .. })`
+    pub fn opened(&self) -> bool {
+        self.size.is_some()
+    }
+
+    pub fn animation_running(&self) -> bool {
+        self.workspaces.animation_running()
     }
 }
 
