@@ -15,9 +15,9 @@ pub struct Config {
 pub struct General {
     pub time_format: TimeFormat,
     pub unit: Unit,
-    /// Get from https://www.latlong.net/
+    /// Get from <https://www.latlong.net/>
     pub lat: f64,
-    /// Get from https://www.latlong.net/
+    /// Get from <https://www.latlong.net/>
     pub lon: f64,
     pub debug: bool,
 }
@@ -442,7 +442,7 @@ pub struct Todoist {
     pub icon: Icon,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<Text>,
-    /// Get from https://todoist.com/prefs/integrations
+    /// Get from <https://todoist.com/prefs/integrations>
     pub api_token: String,
     #[serde(flatten)]
     pub mouse_commands: MouseCommands,
