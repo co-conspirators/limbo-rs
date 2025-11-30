@@ -8,7 +8,7 @@ use crate::message::Message;
 /// Interval in milliseconds between `Message::AnimationTick` events.
 const ANIMATION_TICKRATE: u64 = (1000. / 60.) as u64;
 
-pub trait Lerpable {
+pub trait Lerpable: Clone + Copy {
     fn lerp(start: &Self, end: &Self, factor: f32) -> Self;
 }
 
@@ -53,54 +53,78 @@ impl Easing {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct EasedToggle<V> {
+#[derive(Debug, Clone)]
+pub struct Eased<V> {
     easing: Easing,
+    /// Amount to increment progress by, per tick.
     speed: f32,
-    target: bool,
+    /// The currently desired target index.
+    target_idx: usize,
+    /// 0..=1 progress between `start` and `end`.
     progress: f32,
-    /// Value to attain when target is false
-    f: V,
-    /// Value to attain when target is true
-    t: V,
+    /// Start value of the currently running animation.
+    start: V,
+    /// End value of the currently running animation.
+    end: V,
+    /// All possible target values; `end` is always one of these.
+    targets: Box<[V]>,
 }
 
-impl<V: Lerpable> EasedToggle<V> {
-    pub fn new(target: bool, easing: Easing, duration: f32, f: V, t: V) -> Self {
+impl<V: Lerpable> Eased<V> {
+    pub fn new(initial_target_idx: usize, easing: Easing, duration: f32, targets: &[V]) -> Self {
+        assert!(
+            !targets.is_empty(),
+            "targets must contain at least one element"
+        );
+        assert!(
+            initial_target_idx < targets.len(),
+            "initial_target_idx out of range"
+        );
+
         Self {
             easing,
             speed: ANIMATION_TICKRATE as f32 / duration,
-            target,
-            progress: if target { 1.0 } else { 0.0 },
-            f,
-            t,
+            target_idx: initial_target_idx,
+            progress: 1.0,
+            start: targets[initial_target_idx],
+            end: targets[initial_target_idx],
+            targets: targets.into(),
         }
     }
 
-    pub fn with_target(mut self, target: bool) -> Self {
-        self.target = target;
+    pub fn with_target_idx(mut self, target_idx: usize) -> Self {
+        self.set_target_idx(target_idx);
         self
     }
 
-    pub fn set_target(&mut self, target: bool) {
-        self.target = target;
+    /// Set a new target index and start an animation from the *current* interpolated value.
+    pub fn set_target_idx(&mut self, target_idx: usize) {
+        assert!(target_idx < self.targets.len(), "target_idx out of range");
+
+        // If the new target equals the old target and we're already settled, nothing to do.
+        if target_idx == self.target_idx && (self.progress >= 1.0) {
+            return;
+        }
+
+        self.start = self.get();
+        self.end = self.targets[target_idx];
+        self.progress = 0.0;
+        self.target_idx = target_idx;
     }
 
     pub fn is_running(&self) -> bool {
-        self.target && self.progress < 1.0 || !self.target && self.progress > 0.0
+        self.progress < 1.0
     }
 
     pub fn update(&mut self) {
-        if self.target && self.progress < 1.0 {
+        if self.progress < 1.0 {
             self.progress = (self.progress + self.speed).min(1.0);
-        } else if !self.target && self.progress > 0.0 {
-            self.progress = (self.progress - self.speed).max(0.0);
         }
     }
 
     pub fn get(&self) -> V {
         let factor = self.easing.ease(self.progress);
-        Lerpable::lerp(&self.f, &self.t, factor)
+        Lerpable::lerp(&self.start, &self.end, factor)
     }
 }
 

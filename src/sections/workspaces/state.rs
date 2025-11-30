@@ -1,32 +1,37 @@
 use iced::Color;
 
-use crate::animation::{EasedToggle, Easing};
+use crate::animation::{Eased, Easing};
 use crate::desktop_environment::WorkspaceInfo;
 
 #[derive(Debug, Clone)]
 pub struct WorkspaceState {
     pub info: WorkspaceInfo,
-    width: EasedToggle<f32>,
-    color: EasedToggle<Color>,
+    width: Eased<f32>,
+    color: Eased<Color>,
 }
 
 impl WorkspaceState {
     fn new(info: WorkspaceInfo, config: &crate::config::Config) -> Self {
         Self {
-            width: EasedToggle::new(info.is_active, Easing::Linear, 100., 5.0, 11.0),
-            // TODO: use has_windows color
-            color: EasedToggle::new(
-                info.has_windows || info.is_active,
+            width: Eased::new(width_target_idx(&info), Easing::Linear, 100., &[5.0, 11.0]),
+            color: Eased::new(
+                color_target_idx(&info),
                 Easing::Smoothstep,
                 100.,
-                config
-                    .theme
-                    .resolve_color(&config.bar.workspaces.color.normal)
-                    .unwrap_or(Color::from_rgb8(88, 91, 112)),
-                config
-                    .theme
-                    .resolve_color(&config.bar.workspaces.color.active)
-                    .unwrap_or(Color::from_rgb8(137, 180, 250)),
+                &[
+                    config
+                        .theme
+                        .resolve_color(&config.bar.workspaces.color.normal)
+                        .unwrap_or(Color::from_rgb8(88, 91, 112)),
+                    config
+                        .theme
+                        .resolve_color(&config.bar.workspaces.color.has_windows)
+                        .unwrap_or(Color::from_rgb8(88, 91, 112)),
+                    config
+                        .theme
+                        .resolve_color(&config.bar.workspaces.color.active)
+                        .unwrap_or(Color::from_rgb8(137, 180, 250)),
+                ],
             ),
             info,
         }
@@ -41,8 +46,8 @@ impl WorkspaceState {
     ) -> Self {
         if let Some(state) = states.iter().find(|s| s.info.id == info.id) {
             Self {
-                width: state.width.with_target(info.is_active),
-                color: state.color.with_target(info.has_windows || info.is_active),
+                width: state.width.clone().with_target_idx(width_target_idx(&info)),
+                color: state.color.clone().with_target_idx(color_target_idx(&info)),
                 info,
             }
         } else {
@@ -65,5 +70,19 @@ impl WorkspaceState {
 
     pub fn color(&self) -> Color {
         self.color.get()
+    }
+}
+
+fn width_target_idx(info: &WorkspaceInfo) -> usize {
+    if info.is_active { 1 } else { 0 }
+}
+
+fn color_target_idx(info: &WorkspaceInfo) -> usize {
+    if info.is_active {
+        2
+    } else if info.has_windows {
+        1
+    } else {
+        0
     }
 }
