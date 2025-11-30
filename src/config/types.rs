@@ -849,15 +849,12 @@ impl Default for SysMon {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Cpu {
     pub icon: Icon,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub text: Option<Text>,
 }
 
 impl Default for Cpu {
     fn default() -> Self {
         Self {
             icon: Icon::new("cpu", ColorNameOrHex::name("lavender")),
-            text: None,
         }
     }
 }
@@ -865,17 +862,12 @@ impl Default for Cpu {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Temp {
     pub icon: Icon,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub text: Option<Text>,
-    pub path: String,
 }
 
 impl Default for Temp {
     fn default() -> Self {
         Self {
             icon: Icon::new("temperature", ColorNameOrHex::name("red")),
-            text: None,
-            path: String::new(),
         }
     }
 }
@@ -883,15 +875,12 @@ impl Default for Temp {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Ram {
     pub icon: Icon,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub text: Option<Text>,
 }
 
 impl Default for Ram {
     fn default() -> Self {
         Self {
             icon: Icon::new("cpu-2", ColorNameOrHex::name("pink")),
-            text: None,
         }
     }
 }
