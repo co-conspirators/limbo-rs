@@ -202,7 +202,7 @@ impl Default for BarTheme {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 #[serde(rename_all = "kebab-case")]
 pub enum ModuleName {
     AppLauncher,
