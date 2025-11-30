@@ -91,6 +91,10 @@ impl crate::config::Config {
         icon(&_icon.name, self.theme.resolve_color(&_icon.color))
     }
 
+    pub fn icon_filled(&self, _icon: &crate::config::types::Icon) -> Svg<'static> {
+        icon_filled(&_icon.name, self.theme.resolve_color(&_icon.color))
+    }
+
     pub fn text_with_icon<'a, Message: 'a>(
         &self,
         _icon: &'a crate::config::types::Icon,
