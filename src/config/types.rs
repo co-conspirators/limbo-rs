@@ -547,19 +547,14 @@ impl Default for QuickSettings {
     }
 }
 
-// Helper struct for sort function
-#[derive(Debug)]
-pub struct TrayItem {
-    pub title: String,
-}
-
 #[derive(Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Tray {
     pub ignored_apps: Vec<String>,
     pub app_icon_mappings: HashMap<String, Icon>,
     #[serde(skip)]
-    pub sort_function: Option<Box<dyn Fn(&TrayItem, &TrayItem) -> std::cmp::Ordering>>,
+    pub sort_function:
+        Option<Box<dyn Fn(&crate::tray::TrayItem, &crate::tray::TrayItem) -> std::cmp::Ordering>>,
 }
 
 impl core::fmt::Debug for Tray {
