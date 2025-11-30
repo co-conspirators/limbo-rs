@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use iced::id::Id;
 use iced::{Event, window};
 
 use crate::desktop_environment::{WorkspaceId, WorkspaceInfo};
 use crate::sections::SysInfo;
+use crate::tray::Tray;
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -16,7 +19,9 @@ pub enum Message {
     ClockTick(jiff::Zoned),
 
     SysinfoUpdate(SysInfo),
-    TrayItemsUpdate(Vec<crate::tray::TrayItem>),
+
+    TrayInit(Option<Tray>),
+    TrayItemsUpdate(Arc<Vec<crate::tray::TrayItem>>),
 
     AnimationTick,
 }
