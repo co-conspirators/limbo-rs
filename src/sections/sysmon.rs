@@ -9,7 +9,6 @@ use iced::widget::Row;
 use sysinfo::{Components, CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 
 use crate::GlobalState;
-use crate::components::section;
 use crate::config::Config;
 use crate::config::types::SysMonSegment;
 use crate::message::Message;
@@ -59,7 +58,9 @@ impl Sysmon {
             ),
         });
 
-        section(Row::from_iter(segments).spacing(12)).into()
+        self.config
+            .section(Row::from_iter(segments).spacing(12))
+            .into()
     }
 
     pub fn subscription(config: &Config) -> iced::Subscription<Message> {

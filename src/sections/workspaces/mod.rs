@@ -5,7 +5,6 @@ use iced::advanced::mouse;
 use iced::widget::{Row, container, mouse_area, text};
 
 use crate::GlobalState;
-use crate::components::section;
 use crate::config::Config;
 use crate::desktop_environment::WorkspaceInfo;
 use crate::message::Message;
@@ -88,7 +87,8 @@ impl Workspaces {
             })
             .collect::<Vec<_>>();
 
-        section(Row::from_vec(workspace_icons))
+        self.config
+            .section(Row::from_vec(workspace_icons))
             .padding([0, 8])
             .into()
     }

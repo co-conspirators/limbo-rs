@@ -4,7 +4,6 @@ use iced::id::Id;
 use iced::widget::{mouse_area, row, text};
 
 use crate::GlobalState;
-use crate::components::section;
 use crate::config::Config;
 use crate::config::types::TimeFormat;
 use crate::message::Message;
@@ -52,13 +51,15 @@ impl Clock {
         };
         let formatted_date = self.now.strftime(format).to_string();
 
-        mouse_area(section(
-            row![
-                self.config.icon(&self.config.bar.clock.icon),
-                text(formatted_date)
-            ]
-            .spacing(8),
-        ))
+        mouse_area(
+            self.config.section(
+                row![
+                    self.config.icon(&self.config.bar.clock.icon),
+                    text(formatted_date)
+                ]
+                .spacing(8),
+            ),
+        )
         .on_press(Message::ClockToggleExpanded(self.id.clone()))
         .into()
     }

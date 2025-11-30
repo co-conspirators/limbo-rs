@@ -13,7 +13,7 @@ use sctk::shell::wlr_layer::{Anchor, KeyboardInteractivity, Layer};
 
 use crate::GlobalState;
 use crate::animation::{Eased, Easing};
-use crate::components::{icon, section, side};
+use crate::components::{icon, side};
 use crate::config::Config;
 use crate::config::types::ModuleName;
 use crate::desktop_environment::WorkspaceInfo;
@@ -107,18 +107,38 @@ impl Bar {
         let background_alpha_factor = self.background_alpha_factor.get();
 
         let mk_side = |modules: &Vec<ModuleName>| {
-            Row::from_iter(modules.iter().map(|module| match module {
-                ModuleName::AppLauncher => section(icon("nix-snowflake-white", None)).into(),
-                ModuleName::Battery => section(icon("nix-snowflake-white", None)).into(),
-                ModuleName::Clock => self.clock.view(),
-                ModuleName::Music => section(icon("nix-snowflake-white", None)).into(),
-                ModuleName::Notifications => section(icon("nix-snowflake-white", None)).into(),
-                // NOTE: temporary until full quick settings is impemented
-                ModuleName::QuickSettings => self.tray_view.view(),
-                ModuleName::Sysmon => self.sysmon.view(),
-                ModuleName::Todo => section(icon("nix-snowflake-white", None)).into(),
-                ModuleName::Twitch => section(icon("nix-snowflake-white", None)).into(),
-                ModuleName::Workspaces => self.workspaces.view(),
+            Row::from_iter(modules.iter().map(|module| {
+                match module {
+                    ModuleName::AppLauncher => self
+                        .config
+                        .section(icon("nix-snowflake-white", None))
+                        .into(),
+                    ModuleName::Battery => self
+                        .config
+                        .section(icon("nix-snowflake-white", None))
+                        .into(),
+                    ModuleName::Clock => self.clock.view(),
+                    ModuleName::Music => self
+                        .config
+                        .section(icon("nix-snowflake-white", None))
+                        .into(),
+                    ModuleName::Notifications => self
+                        .config
+                        .section(icon("nix-snowflake-white", None))
+                        .into(),
+                    // NOTE: temporary until full quick settings is impemented
+                    ModuleName::QuickSettings => self.tray_view.view(),
+                    ModuleName::Sysmon => self.sysmon.view(),
+                    ModuleName::Todo => self
+                        .config
+                        .section(icon("nix-snowflake-white", None))
+                        .into(),
+                    ModuleName::Twitch => self
+                        .config
+                        .section(icon("nix-snowflake-white", None))
+                        .into(),
+                    ModuleName::Workspaces => self.workspaces.view(),
+                }
             }))
             .spacing(12)
         };

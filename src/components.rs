@@ -25,24 +25,6 @@ pub fn text_with_icon<'a, Message: 'a>(
     row![icon, text].spacing(6).into()
 }
 
-pub fn section<'a, Message>(
-    content: impl Into<iced::Element<'a, Message>>,
-) -> Container<'a, Message> {
-    container(content)
-        .style(|_| container::Style {
-            // TODO: use theme
-            background: Some(iced::Background::Color(Color::parse("#2c2c3f").unwrap())),
-            border: Border {
-                radius: 6.into(),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .padding([6, 12])
-        .align_y(Alignment::Center)
-        .height(Length::Fill)
-}
-
 static ICON_CACHE: LazyLock<Mutex<HashMap<String, Option<PathBuf>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 pub fn system_icon<'a, Message>(name: &str) -> Option<Element<'a, Message>> {
@@ -77,6 +59,31 @@ pub fn icon_filled(name: &'_ str, color: Option<Color>) -> Svg<'static> {
 }
 
 impl crate::config::Config {
+    pub fn section<'a, Message>(
+        &self,
+        content: impl Into<iced::Element<'a, Message>>,
+    ) -> Container<'a, Message> {
+        let background = Some(iced::Background::Color(
+            self.theme
+                .resolve_color(&self.bar.theme.section_bg)
+                .unwrap_or(Color::parse("#2c2c3f").unwrap()),
+        ));
+        let radius = iced::Radius::new(self.theme.border_radius);
+
+        container(content)
+            .style(move |_| container::Style {
+                background,
+                border: Border {
+                    radius,
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
+            .padding([6, 12])
+            .align_y(Alignment::Center)
+            .height(Length::Fill)
+    }
+
     pub fn icon(&self, _icon: &crate::config::types::Icon) -> Svg<'static> {
         icon(&_icon.name, self.theme.resolve_color(&_icon.color))
     }

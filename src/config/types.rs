@@ -101,7 +101,7 @@ impl ColorNameOrHex {
 #[serde(rename_all = "camelCase")]
 pub struct Theme {
     pub font: String,
-    pub border_radius: u32,
+    pub border_radius: f32,
     pub colors: HashMap<String, Color>,
 }
 

@@ -36,12 +36,13 @@ pub async fn main() -> iced::Result {
 
     let config = Config::load().unwrap_or_default();
 
+    let font_name = config.theme.font.clone().leak();
     iced::daemon("limbo", Limbo::update, Limbo::view)
         .settings(Settings {
             id: Some("limbo".to_string()),
             fonts: Vec::new(),
             default_font: iced::Font {
-                family: iced::font::Family::Name("DejaVu Sans Mono"),
+                family: iced::font::Family::Name(font_name),
                 weight: iced::font::Weight::Normal,
                 stretch: iced::font::Stretch::Normal,
                 style: iced::font::Style::Normal,
@@ -182,15 +183,25 @@ impl Limbo {
     }
 
     fn theme(&self, _window_id: window::Id) -> Theme {
+        let cfg = &self.global_state.config;
+        let text = cfg
+            .theme
+            .resolve_color(&cfg.bar.theme.fg)
+            .unwrap_or(Color::WHITE);
+        let background = cfg
+            .theme
+            .resolve_color(&cfg.bar.theme.bg)
+            .unwrap_or(Color::from_rgb(
+                0x1e as f32 / 255.0,
+                0x1e as f32 / 255.0,
+                0x2e as f32 / 255.0,
+            ));
+
         Theme::custom(
             "internal".to_string(),
             Palette {
-                text: Color::WHITE,
-                background: Color::from_rgb(
-                    0x1e as f32 / 255.0,
-                    0x1e as f32 / 255.0,
-                    0x2e as f32 / 255.0,
-                ),
+                text,
+                background,
                 // Unused
                 primary: Color::BLACK,
                 success: Color::BLACK,
