@@ -22,7 +22,10 @@ pub fn text_with_icon<'a, Message: 'a>(
 ) -> iced::Element<'a, Message> {
     let icon = icon(_icon, color);
     let text = text(_text);
-    row![icon, text].spacing(6).into()
+    row![icon, text]
+        .spacing(6)
+        .align_y(Alignment::Center)
+        .into()
 }
 
 static ICON_CACHE: LazyLock<Mutex<HashMap<String, Option<PathBuf>>>> =

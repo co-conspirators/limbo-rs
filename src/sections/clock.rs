@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use iced::Alignment;
 use iced::id::Id;
 use iced::widget::{mouse_area, row, text};
 
@@ -57,6 +58,7 @@ impl Clock {
                     self.config.icon(&self.config.bar.clock.icon),
                     text(formatted_date)
                 ]
+                .align_y(Alignment::Center)
                 .spacing(8),
             ),
         )
