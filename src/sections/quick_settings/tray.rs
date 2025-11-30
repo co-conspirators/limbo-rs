@@ -1,6 +1,7 @@
 //! note: rome wasn't built in a day
 
 use std::rc::Rc;
+use std::sync::Arc;
 
 use iced::widget::Row;
 
@@ -13,7 +14,7 @@ use crate::tray::TrayItem;
 #[derive(Debug)]
 pub struct TrayView {
     config: Rc<Config>,
-    items: Vec<TrayItem>,
+    items: Arc<Vec<TrayItem>>,
 }
 
 impl TrayView {

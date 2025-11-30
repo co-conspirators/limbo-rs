@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::sync::Arc;
 
 use iced::daemon::{Appearance, DefaultStyle};
 use iced::event::{PlatformSpecific, wayland};
@@ -64,14 +65,14 @@ pub struct GlobalState {
     config: Rc<Config>,
     workspace_infos: Vec<WorkspaceInfo>,
     sysinfo: SysInfo,
-    tray_items: Vec<TrayItem>,
+    tray_items: Arc<Vec<TrayItem>>,
 }
 
 struct Limbo {
     global_state: GlobalState,
     bars: Vec<Bar>,
     desktop: Desktop,
-    tray: Tray,
+    tray: Option<Tray>,
 }
 
 impl Limbo {
@@ -84,9 +85,9 @@ impl Limbo {
                 },
                 bars: Vec::new(),
                 desktop: Desktop::new(),
-                tray: Tray::new(),
+                tray: None,
             },
-            Task::none(),
+            Tray::new().map(Message::TrayInit),
         )
     }
 
@@ -103,9 +104,12 @@ impl Limbo {
                 _ => None,
             }),
             Sysmon::subscription(&self.global_state.config),
-            self.tray.subscription(),
             self.desktop.subscription(),
         ];
+
+        if let Some(tray) = self.tray.as_ref() {
+            subscriptions.push(tray.subscription());
+        }
 
         if self.animation_running() {
             subscriptions.push(animation::subscription());
@@ -148,6 +152,10 @@ impl Limbo {
                     }
                     _ => Task::none(),
                 }
+            }
+            Message::TrayInit(Some(tray)) => {
+                self.tray = Some(tray);
+                Task::none()
             }
             Message::WorkspacesChanged(workspace_infos) => {
                 self.global_state.workspace_infos = workspace_infos;
