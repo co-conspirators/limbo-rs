@@ -6,6 +6,7 @@ use iced::event::{PlatformSpecific, wayland};
 use iced::theme::Palette;
 use iced::{Color, Element, Event, Settings, Task, Theme, window};
 
+use crate::battery::{Battery, BatteryState};
 use crate::desktop_environment::{Desktop, WorkspaceInfo};
 use crate::message::Message;
 use crate::sections::{SysInfo, Sysmon};
@@ -13,6 +14,7 @@ use crate::tray::{Tray, TrayItem};
 
 mod animation;
 mod bar;
+mod battery;
 mod components;
 mod config;
 mod desktop_environment;
@@ -65,6 +67,7 @@ pub struct GlobalState {
     workspace_infos: Vec<WorkspaceInfo>,
     sysinfo: SysInfo,
     tray_items: Arc<Vec<TrayItem>>,
+    battery_state: Option<BatteryState>,
 }
 
 struct Limbo {
@@ -72,6 +75,7 @@ struct Limbo {
     bars: Vec<Bar>,
     desktop: Desktop,
     tray: Option<Tray>,
+    battery: Option<Battery>,
 }
 
 impl Limbo {
@@ -85,8 +89,12 @@ impl Limbo {
                 bars: Vec::new(),
                 desktop: Desktop::new(),
                 tray: None,
+                battery: None,
             },
-            Tray::new().map(Message::TrayInit),
+            Task::batch([
+                Tray::new().map(Message::TrayInit),
+                Battery::new().map(Message::BatteryInit),
+            ]),
         )
     }
 
@@ -108,6 +116,10 @@ impl Limbo {
 
         if let Some(tray) = self.tray.as_ref() {
             subscriptions.push(tray.subscription());
+        }
+
+        if let Some(battery) = self.battery.as_ref() {
+            subscriptions.push(battery.subscription());
         }
 
         if self.animation_running() {
@@ -156,6 +168,10 @@ impl Limbo {
                 self.tray = Some(tray);
                 Task::none()
             }
+            Message::BatteryInit(Some(battery)) => {
+                self.battery = Some(battery);
+                Task::none()
+            }
             Message::WorkspacesChanged(workspace_infos) => {
                 self.global_state.workspace_infos = workspace_infos;
                 Task::none()
@@ -174,6 +190,10 @@ impl Limbo {
             }
             Message::TrayItemsUpdate(tray_items) => {
                 self.global_state.tray_items = tray_items;
+                Task::none()
+            }
+            Message::BatteryUpdate(battery_state) => {
+                self.global_state.battery_state = Some(battery_state);
                 Task::none()
             }
             _ => Task::none(),
