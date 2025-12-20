@@ -313,10 +313,10 @@ impl Default for Battery {
     fn default() -> Self {
         Self {
             ramp_icons: vec![
-                Icon::new("battery-4", ColorNameOrHex::name("green")),
-                Icon::new("battery-3", ColorNameOrHex::name("green")),
-                Icon::new("battery-2", ColorNameOrHex::name("yellow")),
                 Icon::new("battery-1", ColorNameOrHex::name("red")),
+                Icon::new("battery-2", ColorNameOrHex::name("yellow")),
+                Icon::new("battery-3", ColorNameOrHex::name("green")),
+                Icon::new("battery-4", ColorNameOrHex::name("green")),
             ],
             charging_icon: Icon::new("battery-charging", ColorNameOrHex::name("green")),
             full_threshold: 97,

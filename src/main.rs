@@ -67,7 +67,7 @@ pub struct GlobalState {
     workspace_infos: Vec<WorkspaceInfo>,
     sysinfo: SysInfo,
     tray_items: Arc<Vec<TrayItem>>,
-    battery_state: Option<BatteryState>,
+    battery_state: BatteryState,
 }
 
 struct Limbo {
@@ -193,7 +193,7 @@ impl Limbo {
                 Task::none()
             }
             Message::BatteryUpdate(battery_state) => {
-                self.global_state.battery_state = Some(battery_state);
+                self.global_state.battery_state = battery_state;
                 Task::none()
             }
             _ => Task::none(),

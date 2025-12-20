@@ -12,6 +12,17 @@ pub struct BatteryState {
     pub time_to_empty: Option<i64>,
 }
 
+impl Default for BatteryState {
+    fn default() -> Self {
+        Self {
+            percentage: Default::default(),
+            state: upower_dbus::BatteryState::Unknown,
+            time_to_full: None,
+            time_to_empty: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Battery(DeviceProxy<'static>);
 
