@@ -38,6 +38,6 @@ impl TrayView {
             .filter_map(|item| system_icon(item.item.icon_name.as_ref()?))
             .collect::<Vec<_>>();
 
-        self.config.section(Row::from_vec(icons).spacing(12)).into()
+        Row::from_vec(icons).spacing(12).into()
     }
 }

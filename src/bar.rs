@@ -18,7 +18,7 @@ use crate::config::Config;
 use crate::config::types::ModuleName;
 use crate::desktop_environment::WorkspaceInfo;
 use crate::message::Message;
-use crate::sections::{BatteryView, Clock, Sysmon, TrayView, Workspaces};
+use crate::sections::{BatteryView, Clock, QuickSettings, Sysmon, Workspaces};
 
 pub struct Bar {
     /// window id of the bar's layer surface.
@@ -32,7 +32,7 @@ pub struct Bar {
     workspaces: Workspaces,
     clock: Clock,
     sysmon: Sysmon,
-    tray_view: TrayView,
+    quick_settings: QuickSettings,
     battery_view: BatteryView,
 }
 
@@ -60,7 +60,7 @@ impl Bar {
                 workspaces: Workspaces::new(output_name, global_state),
                 clock: Clock::new(global_state),
                 sysmon: Sysmon::new(global_state),
-                tray_view: TrayView::new(global_state),
+                quick_settings: QuickSettings::new(global_state),
                 battery_view: BatteryView::new(global_state),
             },
             get_layer_surface(SctkLayerSurfaceSettings {
@@ -87,7 +87,7 @@ impl Bar {
         self.workspaces.update(message);
         self.clock.update(message);
         self.sysmon.update(message);
-        self.tray_view.update(message);
+        self.quick_settings.update(message);
         self.battery_view.update(message);
         match message {
             Message::AnimationTick => {
@@ -109,32 +109,23 @@ impl Bar {
     pub fn view(&self) -> Element<'_, Message> {
         let background_alpha_factor = self.background_alpha_factor.get();
 
+        let todo_module = || {
+            self.config
+                .section(icon("nix-snowflake-white", None))
+                .into()
+        };
+
         let mk_side = |modules: &Vec<ModuleName>| {
-            Row::from_iter(modules.iter().map(|module| {
-                match module {
-                    ModuleName::AppLauncher => self
-                        .config
-                        .section(icon("nix-snowflake-white", None))
-                        .into(),
-                    ModuleName::Battery => self.battery_view.view(),
-                    ModuleName::Clock => self.clock.view(),
-                    ModuleName::Music => self
-                        .config
-                        .section(icon("nix-snowflake-white", None))
-                        .into(),
-                    ModuleName::Notifications => self
-                        .config
-                        .section(icon("nix-snowflake-white", None))
-                        .into(),
-                    // NOTE: temporary until full quick settings is impemented
-                    ModuleName::QuickSettings => self.tray_view.view(),
-                    ModuleName::Sysmon => self.sysmon.view(),
-                    ModuleName::Todo => self
-                        .config
-                        .section(icon("nix-snowflake-white", None))
-                        .into(),
-                    ModuleName::Workspaces => self.workspaces.view(),
-                }
+            Row::from_iter(modules.iter().map(|module| match module {
+                ModuleName::AppLauncher => todo_module(),
+                ModuleName::Battery => self.battery_view.view(),
+                ModuleName::Clock => self.clock.view(),
+                ModuleName::Music => todo_module(),
+                ModuleName::Notifications => todo_module(),
+                ModuleName::QuickSettings => self.quick_settings.view(),
+                ModuleName::Sysmon => self.sysmon.view(),
+                ModuleName::Todo => todo_module(),
+                ModuleName::Workspaces => self.workspaces.view(),
             }))
             .spacing(12)
         };
