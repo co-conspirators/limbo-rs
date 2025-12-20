@@ -5,13 +5,6 @@ use iced::{Alignment, Border, Color, Element, Length, Theme};
 use crate::config::Config;
 use crate::icons::{Icons, IconsFilled};
 
-pub fn side<'a, Message>(
-    alignment: Alignment,
-    content: impl Into<iced::Element<'a, Message>>,
-) -> Container<'a, Message> {
-    container(content).width(Length::Fill).align_x(alignment)
-}
-
 pub fn text_with_icon<'a, Message: 'a>(
     _icon: &'a str,
     color: Option<Color>,
