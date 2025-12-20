@@ -13,7 +13,7 @@ use sctk::shell::wlr_layer::{Anchor, KeyboardInteractivity, Layer};
 
 use crate::GlobalState;
 use crate::animation::{Eased, Easing};
-use crate::components::{icon, side};
+use crate::components::icon;
 use crate::config::Config;
 use crate::config::types::ModuleName;
 use crate::desktop_environment::WorkspaceInfo;
@@ -107,8 +107,6 @@ impl Bar {
     }
 
     pub fn view(&self) -> Element<'_, Message> {
-        let background_alpha_factor = self.background_alpha_factor.get();
-
         let todo_module = || {
             self.config
                 .section(icon("nix-snowflake-white", None))
@@ -134,25 +132,28 @@ impl Bar {
         let center = mk_side(&self.config.bar.modules.center);
         let right = mk_side(&self.config.bar.modules.right);
 
-        container(
-            row![
-                side(Alignment::Start, left),
-                side(Alignment::Center, center),
-                side(Alignment::End, right),
-            ]
-            .padding([4, 8])
-            .width(Length::Fill)
-            .height(Length::Fill),
-        )
-        .style(move |theme: &Theme| {
+        let content = row![
+            container(left)
+                .align_x(Alignment::Start)
+                .width(Length::Fill),
+            container(center).align_x(Alignment::Center),
+            container(right).align_x(Alignment::End).width(Length::Fill),
+        ]
+        .padding([4, 8])
+        .width(Length::Fill)
+        .height(Length::Fill);
+
+        let background_alpha_factor = self.background_alpha_factor.get();
+        let style = move |theme: &Theme| {
             iced::widget::container::background(
                 theme
                     .palette()
                     .background
                     .scale_alpha(background_alpha_factor),
             )
-        })
-        .into()
+        };
+
+        container(content).style(style).into()
     }
 
     pub fn subscription(&self) -> iced::Subscription<Message> {
