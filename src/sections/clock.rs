@@ -1,8 +1,7 @@
 use std::rc::Rc;
 
-use iced::Alignment;
 use iced::id::Id;
-use iced::widget::{mouse_area, row, text};
+use iced::widget::mouse_area;
 
 use crate::GlobalState;
 use crate::config::Config;
@@ -54,12 +53,8 @@ impl Clock {
 
         mouse_area(
             self.config.section(
-                row![
-                    self.config.icon(&self.config.bar.clock.icon),
-                    text(formatted_date)
-                ]
-                .align_y(Alignment::Center)
-                .spacing(8),
+                self.config
+                    .text_with_icon(&self.config.bar.clock.icon, formatted_date),
             ),
         )
         .on_press(Message::ClockToggleExpanded(self.id.clone()))
