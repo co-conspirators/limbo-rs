@@ -18,7 +18,7 @@ use crate::config::Config;
 use crate::config::types::ModuleName;
 use crate::desktop_environment::WorkspaceInfo;
 use crate::message::Message;
-use crate::sections::{Clock, Sysmon, TrayView, Workspaces};
+use crate::sections::{BatteryView, Clock, Sysmon, TrayView, Workspaces};
 
 pub struct Bar {
     /// window id of the bar's layer surface.
@@ -33,6 +33,7 @@ pub struct Bar {
     clock: Clock,
     sysmon: Sysmon,
     tray_view: TrayView,
+    battery_view: BatteryView,
 }
 
 impl Bar {
@@ -60,6 +61,7 @@ impl Bar {
                 clock: Clock::new(global_state),
                 sysmon: Sysmon::new(global_state),
                 tray_view: TrayView::new(global_state),
+                battery_view: BatteryView::new(global_state),
             },
             get_layer_surface(SctkLayerSurfaceSettings {
                 id,
@@ -86,6 +88,7 @@ impl Bar {
         self.clock.update(message);
         self.sysmon.update(message);
         self.tray_view.update(message);
+        self.battery_view.update(message);
         match message {
             Message::AnimationTick => {
                 self.background_alpha_factor.update();
@@ -113,10 +116,7 @@ impl Bar {
                         .config
                         .section(icon("nix-snowflake-white", None))
                         .into(),
-                    ModuleName::Battery => self
-                        .config
-                        .section(icon("nix-snowflake-white", None))
-                        .into(),
+                    ModuleName::Battery => self.battery_view.view(),
                     ModuleName::Clock => self.clock.view(),
                     ModuleName::Music => self
                         .config
