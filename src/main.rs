@@ -65,9 +65,9 @@ pub fn main() -> iced::Result {
 pub struct GlobalState {
     config: Rc<Config>,
     workspace_infos: Vec<WorkspaceInfo>,
-    sysinfo: SysInfo,
-    tray_items: Arc<Vec<TrayItem>>,
-    battery_state: BatteryState,
+    sysinfo: Option<SysInfo>,
+    tray_items: Option<Arc<Vec<TrayItem>>>,
+    battery_state: Option<BatteryState>,
 }
 
 struct Limbo {
@@ -185,15 +185,15 @@ impl Limbo {
                 Task::none()
             }
             Message::SysinfoUpdate(sysinfo) => {
-                self.global_state.sysinfo = sysinfo;
+                self.global_state.sysinfo = Some(sysinfo);
                 Task::none()
             }
             Message::TrayItemsUpdate(tray_items) => {
-                self.global_state.tray_items = tray_items;
+                self.global_state.tray_items = Some(tray_items);
                 Task::none()
             }
             Message::BatteryUpdate(battery_state) => {
-                self.global_state.battery_state = battery_state;
+                self.global_state.battery_state = Some(battery_state);
                 Task::none()
             }
             _ => Task::none(),

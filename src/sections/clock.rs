@@ -38,7 +38,7 @@ impl Clock {
         }
     }
 
-    pub fn view(&self) -> iced::Element<'_, Message> {
+    pub fn view(&self) -> Option<iced::Element<'_, Message>> {
         let format = match (self.config.general.time_format, self.expanded) {
             // Sun 5:14 PM
             (TimeFormat::_12h, false) => "%a %-I:%M %p",
@@ -51,14 +51,16 @@ impl Clock {
         };
         let formatted_date = self.now.strftime(format).to_string();
 
-        mouse_area(
-            self.config.section(
-                self.config
-                    .text_with_icon(&self.config.bar.clock.icon, formatted_date),
-            ),
+        Some(
+            mouse_area(
+                self.config.section(
+                    self.config
+                        .text_with_icon(&self.config.bar.clock.icon, formatted_date),
+                ),
+            )
+            .on_press(Message::ClockToggleExpanded(self.id.clone()))
+            .into(),
         )
-        .on_press(Message::ClockToggleExpanded(self.id.clone()))
-        .into()
     }
 
     pub fn subscription(&self) -> iced::Subscription<Message> {

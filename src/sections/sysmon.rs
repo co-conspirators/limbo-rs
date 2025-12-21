@@ -23,7 +23,7 @@ pub struct SysInfo {
 #[derive(Debug)]
 pub struct Sysmon {
     config: Rc<Config>,
-    info: SysInfo,
+    info: Option<SysInfo>,
 }
 
 impl Sysmon {
@@ -36,31 +36,34 @@ impl Sysmon {
 
     pub fn update(&mut self, message: &Message) {
         if let Message::SysinfoUpdate(info) = message {
-            self.info = *info;
+            self.info = Some(*info);
         }
     }
 
-    pub fn view(&self) -> iced::Element<'_, Message> {
+    pub fn view(&self) -> Option<iced::Element<'_, Message>> {
+        let info = self.info.as_ref()?;
         let cfg = &self.config.bar.sysmon;
 
         let segments = cfg.segments.iter().map(|segment| match segment {
             SysmonSegment::Cpu => self.config.text_with_icon(
                 &self.config.bar.sysmon.cpu.icon,
-                format!("{:.*}%", cfg.cpu.precision, self.info.cpu_usage),
+                format!("{:.*}%", cfg.cpu.precision, info.cpu_usage),
             ),
             SysmonSegment::Temp => self.config.text_with_icon(
                 &self.config.bar.sysmon.temp.icon,
-                format!("{:.*}°", cfg.temp.precision, self.info.cpu_temp),
+                format!("{:.*}°", cfg.temp.precision, info.cpu_temp),
             ),
             SysmonSegment::Ram => self.config.text_with_icon(
                 &self.config.bar.sysmon.ram.icon,
-                format!("{:.*} GB", cfg.ram.precision, self.info.ram),
+                format!("{:.*} GB", cfg.ram.precision, info.ram),
             ),
         });
 
-        self.config
-            .section(Row::from_iter(segments).spacing(12))
-            .into()
+        Some(
+            self.config
+                .section(Row::from_iter(segments).spacing(12))
+                .into(),
+        )
     }
 
     pub fn subscription(config: &Config) -> iced::Subscription<Message> {
