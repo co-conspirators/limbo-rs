@@ -8,7 +8,7 @@ use crate::message::Message;
 #[derive(Debug)]
 pub struct BatteryView {
     config: Rc<Config>,
-    state: BatteryState,
+    state: Option<BatteryState>,
 }
 
 impl BatteryView {
@@ -21,20 +21,21 @@ impl BatteryView {
 
     pub fn update(&mut self, message: &Message) {
         if let Message::BatteryUpdate(battery_state) = message {
-            self.state = *battery_state;
+            self.state = Some(*battery_state);
         }
     }
 
-    pub fn view(&self) -> iced::Element<'_, Message> {
+    pub fn view(&self) -> Option<iced::Element<'_, Message>> {
+        let state = self.state.as_ref()?;
         let cfg = &self.config.bar.battery;
 
-        let percentage = if self.state.percentage > cfg.full_threshold as f64 {
+        let percentage = if state.percentage > cfg.full_threshold as f64 {
             100.0
         } else {
-            self.state.percentage
+            state.percentage
         };
 
-        let icon = match self.state.state {
+        let icon = match state.state {
             upower_dbus::BatteryState::Charging => &cfg.charging_icon,
             upower_dbus::BatteryState::PendingCharge | upower_dbus::BatteryState::FullyCharged => {
                 cfg.ramp_icons.last().unwrap()
@@ -45,11 +46,13 @@ impl BatteryView {
             }
         };
 
-        self.config
-            .section(
-                self.config
-                    .text_with_icon(icon, format!("{:.0}%", percentage)),
-            )
-            .into()
+        Some(
+            self.config
+                .section(
+                    self.config
+                        .text_with_icon(icon, format!("{:.0}%", percentage)),
+                )
+                .into(),
+        )
     }
 }

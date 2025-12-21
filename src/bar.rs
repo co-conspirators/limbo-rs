@@ -108,13 +108,15 @@ impl Bar {
 
     pub fn view(&self) -> Element<'_, Message> {
         let todo_module = || {
-            self.config
-                .section(icon("nix-snowflake-white", None))
-                .into()
+            Some(
+                self.config
+                    .section(icon("nix-snowflake-white", None))
+                    .into(),
+            )
         };
 
         let mk_side = |modules: &Vec<ModuleName>| {
-            Row::from_iter(modules.iter().map(|module| match module {
+            Row::from_iter(modules.iter().filter_map(|module| match module {
                 ModuleName::AppLauncher => todo_module(),
                 ModuleName::Battery => self.battery_view.view(),
                 ModuleName::Clock => self.clock.view(),
@@ -123,7 +125,7 @@ impl Bar {
                 ModuleName::QuickSettings => self.quick_settings.view(),
                 ModuleName::Sysmon => self.sysmon.view(),
                 ModuleName::Todo => todo_module(),
-                ModuleName::Workspaces => self.workspaces.view(),
+                ModuleName::Workspaces => Some(self.workspaces.view()),
             }))
             .spacing(12)
         };

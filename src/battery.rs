@@ -12,17 +12,6 @@ pub struct BatteryState {
     pub time_to_empty: Option<i64>,
 }
 
-impl Default for BatteryState {
-    fn default() -> Self {
-        Self {
-            percentage: Default::default(),
-            state: upower_dbus::BatteryState::Unknown,
-            time_to_full: None,
-            time_to_empty: None,
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct Battery(DeviceProxy<'static>);
 
@@ -31,9 +20,13 @@ impl Battery {
         Task::future(async {
             let conn = zbus::Connection::system().await.ok()?;
             let upower = UPowerProxy::new(&conn).await.ok()?;
-            let battery = upower.get_display_device().await.ok()?;
+            let device = upower.get_display_device().await.ok()?;
 
-            Some(Self(battery))
+            if device.type_().await.ok()? == upower_dbus::BatteryType::Battery {
+                Some(Self(device))
+            } else {
+                None
+            }
         })
     }
 
