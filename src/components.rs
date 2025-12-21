@@ -1,20 +1,9 @@
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::{LazyLock, Mutex};
-
 use iced::widget::svg::{Handle, Svg};
 use iced::widget::{Container, container, image, row, svg, text};
 use iced::{Alignment, Border, Color, Element, Length, Theme};
 
 use crate::config::Config;
 use crate::icons::{Icons, IconsFilled};
-
-pub fn side<'a, Message>(
-    alignment: Alignment,
-    content: impl Into<iced::Element<'a, Message>>,
-) -> Container<'a, Message> {
-    container(content).width(Length::Fill).align_x(alignment)
-}
 
 pub fn text_with_icon<'a, Message: 'a>(
     _icon: &'a str,
@@ -29,15 +18,11 @@ pub fn text_with_icon<'a, Message: 'a>(
         .into()
 }
 
-static ICON_CACHE: LazyLock<Mutex<HashMap<String, Option<PathBuf>>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
 pub fn system_icon<'a, Message>(name: &str) -> Option<Element<'a, Message>> {
-    let icon_path = ICON_CACHE
-        .lock()
-        .ok()?
-        .entry(name.to_string())
-        .or_insert_with(|| freedesktop_icons::lookup(name).with_size(48).find())
-        .clone()?;
+    let icon_path = freedesktop_icons::lookup(name)
+        .with_cache()
+        .with_size(48)
+        .find()?;
     Some(image(image::Handle::from_path(icon_path)).into())
 }
 

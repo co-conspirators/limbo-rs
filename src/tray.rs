@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
+use iced::Task;
+use iced::futures::StreamExt;
 use system_tray::client::Client;
 use system_tray::item::StatusNotifierItem;
 use system_tray::menu::TrayMenu;
-use tokio::sync::{Mutex, watch};
 
 use crate::message::Message;
 
@@ -22,57 +23,66 @@ impl From<&(StatusNotifierItem, Option<TrayMenu>)> for TrayItem {
     }
 }
 
-#[derive(Debug)]
-pub struct Tray {
-    rx: Arc<Mutex<watch::Receiver<Vec<TrayItem>>>>,
-}
+#[derive(Debug, Clone)]
+pub struct Tray(Arc<Client>);
 
 impl Tray {
-    pub fn new() -> Self {
-        let (tx, rx) = watch::channel(vec![]);
+    pub fn new() -> Task<Option<Self>> {
+        Task::future(async {
+            let client = Client::new().await;
+            match client {
+                Ok(client) => Some(Self(Arc::new(client))),
+                Err(e) => {
+                    eprintln!("failed to connect to tray: {e}");
+                    None
+                }
+            }
+        })
+    }
 
-        tokio::spawn(async move {
-            let client = Client::new().await.expect("failed to connect to tray");
-            let mut tray_rx = client.subscribe();
-            loop {
+    pub fn subscription(&self) -> iced::Subscription<Message> {
+        iced::advanced::subscription::from_recipe(self.clone())
+    }
+}
+
+impl iced::advanced::subscription::Recipe for Tray {
+    type Output = Message;
+
+    fn hash(&self, state: &mut iced::advanced::subscription::Hasher) {
+        use std::hash::Hash;
+        std::any::TypeId::of::<Self>().hash(state);
+    }
+
+    fn stream(
+        self: Box<Self>,
+        _input: iced::advanced::subscription::EventStream,
+    ) -> iced::runtime::futures::BoxStream<Self::Output> {
+        let tray_rx = self.0.subscribe();
+
+        let stream = iced::futures::stream::unfold(
+            (self.0, tray_rx, true),
+            |(client, mut tray_rx, first)| async move {
+                // during the first iteration, update immediately
+                if !first && let Err(e) = tray_rx.recv().await {
+                    eprintln!("Failed to receive tray items: {}", e);
+                    return None;
+                }
+
                 let items = client
                     .items()
                     .lock()
                     .expect("mutex should not be poisoned")
                     .values()
-                    .map(|item| item.into())
+                    .map(TrayItem::from)
                     .collect();
 
-                if let Err(e) = tx.send(items) {
-                    eprintln!("Failed to send tray items: {}", e);
-                    break;
-                }
-                if let Err(e) = tray_rx.recv().await {
-                    eprintln!("Failed to receive tray items: {}", e);
-                    break;
-                }
-            }
-        });
+                Some((
+                    Message::TrayItemsUpdate(Arc::new(items)),
+                    (client, tray_rx, false),
+                ))
+            },
+        );
 
-        Self {
-            rx: Arc::new(Mutex::new(rx)),
-        }
-    }
-
-    pub fn subscription(&self) -> iced::Subscription<Message> {
-        iced::Subscription::run_with_id(
-            "tray".to_string(),
-            iced::futures::stream::unfold(self.rx.clone(), |rx| async move {
-                let value = {
-                    let mut rx = rx.lock().await;
-                    if rx.changed().await.is_ok() {
-                        Some(rx.borrow().clone())
-                    } else {
-                        None
-                    }
-                };
-                value.map(|v| (Message::TrayItemsUpdate(v), rx))
-            }),
-        )
+        stream.boxed()
     }
 }

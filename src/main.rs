@@ -1,10 +1,12 @@
 use std::rc::Rc;
+use std::sync::Arc;
 
 use iced::daemon::{Appearance, DefaultStyle};
 use iced::event::{PlatformSpecific, wayland};
 use iced::theme::Palette;
 use iced::{Color, Element, Event, Settings, Task, Theme, window};
 
+use crate::battery::{Battery, BatteryState};
 use crate::desktop_environment::{Desktop, WorkspaceInfo};
 use crate::message::Message;
 use crate::sections::{SysInfo, Sysmon};
@@ -12,6 +14,7 @@ use crate::tray::{Tray, TrayItem};
 
 mod animation;
 mod bar;
+mod battery;
 mod components;
 mod config;
 mod desktop_environment;
@@ -23,8 +26,7 @@ mod tray;
 use bar::Bar;
 use config::Config;
 
-#[tokio::main]
-pub async fn main() -> iced::Result {
+pub fn main() -> iced::Result {
     // Workaround for https://github.com/friedow/centerpiece/issues/237
     // WGPU picks the lower power GPU by default, which on some systems,
     // will pick an IGPU that doesn't exist leading to a black screen.
@@ -63,15 +65,17 @@ pub async fn main() -> iced::Result {
 pub struct GlobalState {
     config: Rc<Config>,
     workspace_infos: Vec<WorkspaceInfo>,
-    sysinfo: SysInfo,
-    tray_items: Vec<TrayItem>,
+    sysinfo: Option<SysInfo>,
+    tray_items: Option<Arc<Vec<TrayItem>>>,
+    battery_state: Option<BatteryState>,
 }
 
 struct Limbo {
     global_state: GlobalState,
     bars: Vec<Bar>,
     desktop: Desktop,
-    tray: Tray,
+    tray: Option<Tray>,
+    battery: Option<Battery>,
 }
 
 impl Limbo {
@@ -84,9 +88,13 @@ impl Limbo {
                 },
                 bars: Vec::new(),
                 desktop: Desktop::new(),
-                tray: Tray::new(),
+                tray: None,
+                battery: None,
             },
-            Task::none(),
+            Task::batch([
+                Tray::new().map(Message::TrayInit),
+                Battery::new().map(Message::BatteryInit),
+            ]),
         )
     }
 
@@ -103,9 +111,16 @@ impl Limbo {
                 _ => None,
             }),
             Sysmon::subscription(&self.global_state.config),
-            self.tray.subscription(),
             self.desktop.subscription(),
         ];
+
+        if let Some(tray) = self.tray.as_ref() {
+            subscriptions.push(tray.subscription());
+        }
+
+        if let Some(battery) = self.battery.as_ref() {
+            subscriptions.push(battery.subscription());
+        }
 
         if self.animation_running() {
             subscriptions.push(animation::subscription());
@@ -149,6 +164,14 @@ impl Limbo {
                     _ => Task::none(),
                 }
             }
+            Message::TrayInit(Some(tray)) => {
+                self.tray = Some(tray);
+                Task::none()
+            }
+            Message::BatteryInit(Some(battery)) => {
+                self.battery = Some(battery);
+                Task::none()
+            }
             Message::WorkspacesChanged(workspace_infos) => {
                 self.global_state.workspace_infos = workspace_infos;
                 Task::none()
@@ -162,11 +185,15 @@ impl Limbo {
                 Task::none()
             }
             Message::SysinfoUpdate(sysinfo) => {
-                self.global_state.sysinfo = sysinfo;
+                self.global_state.sysinfo = Some(sysinfo);
                 Task::none()
             }
             Message::TrayItemsUpdate(tray_items) => {
-                self.global_state.tray_items = tray_items;
+                self.global_state.tray_items = Some(tray_items);
+                Task::none()
+            }
+            Message::BatteryUpdate(battery_state) => {
+                self.global_state.battery_state = Some(battery_state);
                 Task::none()
             }
             _ => Task::none(),

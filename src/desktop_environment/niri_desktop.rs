@@ -1,5 +1,4 @@
-use iced::futures::StreamExt;
-use iced::futures::stream::{once, unfold};
+use iced::futures::stream::unfold;
 use niri_ipc::socket::Socket;
 use niri_ipc::state::{EventStreamState, EventStreamStatePart};
 use niri_ipc::{Action, Request, Response};
@@ -38,41 +37,42 @@ impl NiriDesktop {
 
         iced::Subscription::run_with_id(
             NiriEvents,
-            once(new_event_stream())
-                .filter_map(|e| async { e })
-                .flat_map(|socket| {
-                    unfold(
-                        (socket, String::new(), EventStreamState::default()),
-                        |(mut socket, mut buf, mut state)| async {
-                            loop {
-                                // Ignore errors.
-                                // In particular, ignore Event::WindowFocusTimestampChanged, which we
-                                // do not know how to deserialize since it hasn't been released yet.
-                                if let Some(event) = read_event(&mut buf, &mut socket).await {
-                                    state.apply(event.clone());
-                                    use niri_ipc::Event::*;
+            unfold(
+                (None, String::new(), EventStreamState::default()),
+                |(socket, mut buf, mut state)| async {
+                    let mut socket = match socket {
+                        Some(socket) => socket,
+                        None => new_event_stream().await?,
+                    };
 
-                                    // Only emit messages on relevant events.
-                                    if let WorkspacesChanged { .. }
-                                    | WorkspaceActivated { .. }
-                                    | WorkspaceActiveWindowChanged { .. }
-                                    | WindowOpenedOrChanged { .. }
-                                    | WindowFocusChanged { .. }
-                                    | WindowClosed { .. }
-                                    | OverviewOpenedOrClosed { .. } = event
-                                    {
-                                        break;
-                                    }
-                                };
+                    loop {
+                        // Ignore errors. This is particularly useful if we're communicating with
+                        // a new version of niri (possibly nightly), which may have introduced new
+                        // Events that our version of niri_ipc doesn't know about yet.
+                        if let Some(event) = read_event(&mut buf, &mut socket).await {
+                            state.apply(event.clone());
+                            use niri_ipc::Event::*;
+
+                            // Only emit messages on relevant events.
+                            if let WorkspacesChanged { .. }
+                            | WorkspaceActivated { .. }
+                            | WorkspaceActiveWindowChanged { .. }
+                            | WindowOpenedOrChanged { .. }
+                            | WindowFocusChanged { .. }
+                            | WindowClosed { .. }
+                            | OverviewOpenedOrClosed { .. } = event
+                            {
+                                break;
                             }
+                        };
+                    }
 
-                            Some((
-                                Message::WorkspacesChanged(make_workspace_infos(&state)),
-                                (socket, buf, state),
-                            ))
-                        },
-                    )
-                }),
+                    Some((
+                        Message::WorkspacesChanged(make_workspace_infos(&state)),
+                        (Some(socket), buf, state),
+                    ))
+                },
+            ),
         )
     }
 }
@@ -92,10 +92,9 @@ async fn new_event_stream() -> Option<BufReader<UnixStream>> {
 
     socket.read_line(&mut buf).await.ok()?;
     let reply: niri_ipc::Reply = serde_json::from_str(&buf).ok()?;
-    if let Ok(Response::Handled) = reply {
-        Some(socket)
-    } else {
-        None
+    match reply {
+        Ok(Response::Handled) => Some(socket),
+        _ => None,
     }
 }
 

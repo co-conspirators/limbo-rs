@@ -1,6 +1,7 @@
 //! note: rome wasn't built in a day
 
 use std::rc::Rc;
+use std::sync::Arc;
 
 use iced::widget::Row;
 
@@ -13,7 +14,7 @@ use crate::tray::TrayItem;
 #[derive(Debug)]
 pub struct TrayView {
     config: Rc<Config>,
-    items: Vec<TrayItem>,
+    items: Option<Arc<Vec<TrayItem>>>,
 }
 
 impl TrayView {
@@ -26,17 +27,22 @@ impl TrayView {
 
     pub fn update(&mut self, message: &Message) {
         if let Message::TrayItemsUpdate(items) = message {
-            self.items = items.clone();
+            self.items = Some(items.clone());
         }
     }
 
-    pub fn view(&self) -> iced::Element<'_, Message> {
-        let icons = self
-            .items
+    pub fn view(&self) -> Option<iced::Element<'_, Message>> {
+        let items = self.items.as_ref()?;
+
+        if items.is_empty() {
+            return None;
+        }
+
+        let icons = items
             .iter()
             .filter_map(|item| system_icon(item.item.icon_name.as_ref()?))
             .collect::<Vec<_>>();
 
-        self.config.section(Row::from_vec(icons).spacing(12)).into()
+        Some(Row::from_vec(icons).spacing(12).into())
     }
 }

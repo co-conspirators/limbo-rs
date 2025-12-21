@@ -1,8 +1,7 @@
 use std::rc::Rc;
 
-use iced::Alignment;
 use iced::id::Id;
-use iced::widget::{mouse_area, row, text};
+use iced::widget::mouse_area;
 
 use crate::GlobalState;
 use crate::config::Config;
@@ -39,7 +38,7 @@ impl Clock {
         }
     }
 
-    pub fn view(&self) -> iced::Element<'_, Message> {
+    pub fn view(&self) -> Option<iced::Element<'_, Message>> {
         let format = match (self.config.general.time_format, self.expanded) {
             // Sun 5:14 PM
             (TimeFormat::_12h, false) => "%a %-I:%M %p",
@@ -52,18 +51,16 @@ impl Clock {
         };
         let formatted_date = self.now.strftime(format).to_string();
 
-        mouse_area(
-            self.config.section(
-                row![
-                    self.config.icon(&self.config.bar.clock.icon),
-                    text(formatted_date)
-                ]
-                .align_y(Alignment::Center)
-                .spacing(8),
-            ),
+        Some(
+            mouse_area(
+                self.config.section(
+                    self.config
+                        .text_with_icon(&self.config.bar.clock.icon, formatted_date),
+                ),
+            )
+            .on_press(Message::ClockToggleExpanded(self.id.clone()))
+            .into(),
         )
-        .on_press(Message::ClockToggleExpanded(self.id.clone()))
-        .into()
     }
 
     pub fn subscription(&self) -> iced::Subscription<Message> {
