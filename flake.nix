@@ -44,7 +44,10 @@
               root = ./.;
               fileset = rustFs;
             };
-            cargoLock.lockFile = ./Cargo.lock;
+            cargoHash = "sha256-M65jMv4LPleZ3cXtfoKbU4Jqe83nW7BLwXJMppDSc04=";
+
+            nativeBuildInputs = with pkgs; [ pkg-config ];
+            buildInputs = with pkgs; [ wayland libxkbcommon vulkan-loader libGL ];
 
             meta = {
               description = "Limbo bar, now with more rust";
